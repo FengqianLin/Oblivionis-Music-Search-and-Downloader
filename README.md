@@ -37,7 +37,7 @@ For the standalone `.exe` version, no additional dependencies are required.
 
 2. **Install Dependencies** (if running the Python script):
    ```bash
-   pip install -r requirements.txt
+   pip install requests pillow
    ```
 
 3. **Run the Application**:
@@ -53,14 +53,14 @@ For the standalone `.exe` version, no additional dependencies are required.
 2. **Search for Music**:
    - Enter a keyword (song, artist, or album name) in the search bar.
    - Select a music source (e.g., NetEase, Kuwo) and search type (song/artist or album).
-   - Click the "Search" button to display results.
+   - Click the "搜索" button to display results.
 3. **View Album Covers**: Double-click a song in the results to fetch and display its album cover.
 4. **Download Music**:
    - Select one or more songs from the results (use `Ctrl+A` to select all or drag to select multiple).
-   - Click "Download Selected Songs" and choose save directories for music and lyrics (if not predefined in settings).
+   - Click "下载选中歌曲" and choose save directories for music and lyrics (if not predefined in settings).
    - Monitor the download progress via the progress bar.
 5. **Customize Settings**:
-   - Click the "Settings" button to configure default music source, search type, bitrate, and save paths.
+   - Click the "设置" button to configure default music source, search type, bitrate, and save paths.
    - Save settings to apply them immediately and persist across sessions.
 
 ## API Information
@@ -71,10 +71,6 @@ Oblivionis uses the [GD Studio Music API](https://music.gdstudio.xyz) to fetch m
 - **Song URL**: `https://music-api.gdstudio.xyz/api.php?types=url&source=[MUSIC_SOURCE]&id=[TRACK_ID]&br=[BITRATE]`
 - **Album Cover**: `https://music-api.gdstudio.xyz/api.php?types=pic&source=[MUSIC_SOURCE]&id=[PIC_ID]&size=[SIZE]`
 - **Lyrics**: `https://music-api.gdstudio.xyz/api.php?types=lyric&source=[MUSIC_SOURCE]&id=[LYRIC_ID]`
-
-For detailed API documentation, refer to the [GD Studio's Online Music Platform API.pdf](GD%20Studio's%20Online%20Music%20Platform%20API.pdf) included in this repository.
-
-**Note**: The API is based on open-source projects Meting and MKOnlineMusicPlayer, modified by GD Studio. Always credit the source (GD音乐台, music.gdstudio.xyz) when using the API.
 
 ## Contributing
 
@@ -105,5 +101,3 @@ For issues, suggestions, or inquiries, please contact:
 
 Our project is based on music.gdstudio.xyz. To contact the owner of website:
 - **GD Studio**: gdstudio@email.com or via Bilibili (GD-Studio)
-
-**Last Updated**: August 14, 2025
