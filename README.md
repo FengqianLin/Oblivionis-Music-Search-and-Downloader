@@ -38,10 +38,9 @@ For the standalone `.exe` version, no additional dependencies are required.
    ```
 
 4. **Run the Script**:
-   - For the Python script:
-     ```bash
-     python Oblivionis.py
-     ```
+   ```bash
+   python Oblivionis.py
+   ```
 For the `.exe` version, download `Oblivionis.exe` from the [Releases](https://github.com/FengqianLin/Oblivionis-Music-Search-and-Downloader/releases) page and double-click to run.
 
 ## Usage
