@@ -6,22 +6,19 @@
 
 ## Features
 
-- **Search Functionality**: Search for songs, artists, or albums across multiple music platforms, including NetEase, Tencent, Tidal, Spotify, YouTube Music, and more.
 - **Multi-Source Support**: Choose from a variety of music sources, with stable options like NetEase, Kuwo, and Joox (as of July 2025).
 - **Album Cover Display**: Automatically fetch and display album artwork for selected tracks.
-- **Download Capabilities**: Download music in various bitrates (128kbps to lossless 999kbps) and save lyrics in LRC format.
-- **Configurable Settings**: Customize default music source, search type, bitrate, and save paths for music and lyrics.
+- **Configurable Settings**: Customize default music source, search type, bitrate(128kbps to lossless 999kbps), and save paths for music and lyrics.
 - **User-Friendly Interface**: Built with Tkinter, featuring a responsive GUI with a progress bar, multi-selection, and mouse drag-to-select functionality.
-- **Cross-Platform**: Available as a Python script or a standalone `.exe` for Windows users.
 
 ## Prerequisites
 
 To run the Python script, ensure you have the following dependencies installed:
 
-- Python 3.8 or higher
+- Python 3.11 or higher
 - Required Python libraries:
   ```bash
-  pip install requests pillow
+  pillow >= 10.2.0
   ```
 - Tkinter (usually included with standard Python installations)
 
@@ -37,7 +34,9 @@ For the standalone `.exe` version, no additional dependencies are required.
 
 2. **Install Dependencies** (if running the Python script):
    ```bash
-   pip install requests pillow
+   conda create -n OblivionisMusic python=3.11
+   conda activate OblivionisMusic
+   pip install requirements.txt
    ```
 
 3. **Run the Application**:
@@ -45,7 +44,7 @@ For the standalone `.exe` version, no additional dependencies are required.
      ```bash
      python Oblivionis.py
      ```
-   - For the `.exe` version, download `Oblivionis.exe` from the [Releases](https://github.com/yourusername/oblivionis/releases) page and double-click to run.
+For the `.exe` version, download `Oblivionis.exe` from the [Releases](https://github.com/FengqianLin/Oblivionis-Music-Search-and-Downloader/releases) page and double-click to run.
 
 ## Usage
 
@@ -54,14 +53,17 @@ For the standalone `.exe` version, no additional dependencies are required.
    - Enter a keyword (song, artist, or album name) in the search bar.
    - Select a music source (e.g., NetEase, Kuwo) and search type (song/artist or album).
    - Click the "搜索" button to display results.
+   - To search by an artist or album from your current results, double-click the artist or album cell for any song.
 3. **View Album Covers**: Double-click a song in the results to fetch and display its album cover.
 4. **Download Music**:
-   - Select one or more songs from the results (use `Ctrl+A` to select all or drag to select multiple).
+   - Select one or more songs from the results (use `Ctrl+A` to select all or drag to select multiple. You can also use `ctrl` or `shift` to select).
    - Click "下载选中歌曲" and choose save directories for music and lyrics (if not predefined in settings).
    - Monitor the download progress via the progress bar.
 5. **Customize Settings**:
    - Click the "设置" button to configure default music source, search type, bitrate, and save paths.
    - Save settings to apply them immediately and persist across sessions.
+6. **Cookie Management**:
+   - This app automatically creates a cookie file `session_cookies.pkl`. You can safely delete this file at any time.
 
 ## API Information
 
