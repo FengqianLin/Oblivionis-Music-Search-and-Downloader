@@ -46,8 +46,9 @@ def load_config():
             "default_source": "netease",
             "default_search_type": "单曲/歌手搜索",
             "default_bitrate": "320",
+            "download_lyrics": True,
             "default_music_path": "每次询问",
-            "default_lyric_path": "每次询问"
+            "default_lyric_path": "每次询问",
         }
 
 def save_config(cfg):
@@ -250,16 +251,17 @@ def download_music(song_id, song_name, source, save_dir_music, save_dir_lyric):
             messagebox.showwarning("下载提示", f"未能获取歌曲 '{song_name}' 的下载链接")
             return False
 
-        lyric_params = {
-            "types": "lyric",
-            "source": source,
-            "id": song_id
-        }
-        lyric_data = session.get(BASE_URL, params=lyric_params).json()
-        if "lyric" in lyric_data:
-            lyric_file = os.path.join(save_dir_lyric, sanitize_filename(f"{song_name}.lrc"))
-            with open(lyric_file, "w", encoding="utf-8") as f:
-                f.write(lyric_data["lyric"])
+        if config.get("download_lyrics", True):
+            lyric_params = {
+                "types": "lyric",
+                "source": source,
+                "id": song_id
+            }
+            lyric_data = session.get(BASE_URL, params=lyric_params).json()
+            if "lyric" in lyric_data:
+                lyric_file = os.path.join(save_dir_lyric, sanitize_filename(f"{song_name}.lrc"))
+                with open(lyric_file, "w", encoding="utf-8") as f:
+                    f.write(lyric_data["lyric"])
         return True
 
     except requests.exceptions.Timeout:
@@ -315,7 +317,7 @@ def open_settings():
         pass
 
     win.title("设置")
-    win.geometry("420x450")
+    win.geometry("400x500")
 
     canvas = tk.Canvas(win)
     scrollbar = tk.Scrollbar(win, orient="vertical", command=canvas.yview)
@@ -344,6 +346,11 @@ def open_settings():
     cb_bitrate.set(config.get("default_bitrate", "320"))
     cb_bitrate.pack(anchor="w", padx=10)
 
+    download_lyrics_var = tk.BooleanVar()
+    download_lyrics_var.set(config.get("download_lyrics", True))
+    chk_download_lyrics = tk.Checkbutton(scroll_frame, text="下载歌词", variable=download_lyrics_var)
+    chk_download_lyrics.pack(anchor="w", padx=10, pady=(10, 0))
+
     tk.Label(scroll_frame, text="每页显示结果:").pack(anchor="w", padx=10, pady=5)
     cb_count = ttk.Combobox(scroll_frame, values=["10", "20", "30", "40", "50"], state="readonly")
     cb_count.set(config.get("default_search_count", 20))
@@ -365,6 +372,7 @@ def open_settings():
         config["default_source"] = cb_source.get()
         config["default_search_type"] = cb_type.get()
         config["default_bitrate"] = cb_bitrate.get()
+        config["download_lyrics"] = download_lyrics_var.get()
         config["default_music_path"] = entry_music_path.get() or "每次询问"
         config["default_lyric_path"] = entry_lyric_path.get() or "每次询问"
         save_config(config)
@@ -425,7 +433,7 @@ try:
 except tk.TclError:
     pass
 root.title("音乐搜索与下载")
-root.geometry("1050x800")
+root.geometry("800x800")
 
 # -------------  顶部出处标签  -------------
 header_frame = tk.Frame(root)
