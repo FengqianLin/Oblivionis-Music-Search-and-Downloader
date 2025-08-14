@@ -2,8 +2,6 @@
 
 **Oblivionis** is a Python-based desktop application designed for searching and downloading music from various online music platforms via the GD Studio Music API. It provides a user-friendly graphical interface to search for songs, albums, or artists, display album covers, and download music files and lyrics. The application supports multiple music sources and allows users to customize settings such as default music source, bitrate, and save paths.
 
-**Disclaimer**: This application is for personal study and research purposes only. Do not use it for commercial purposes or unauthorized distribution of copyrighted material. Always respect the terms of service of the music platforms and ensure compliance with local copyright laws.
-
 ## Features
 
 - **Multi-Source Support**: Choose from a variety of music sources, with stable options like NetEase, Kuwo, and Joox (as of July 2025).
@@ -17,10 +15,8 @@ To run the Python script, ensure you have the following dependencies installed:
 
 - Python 3.11 or higher
 - Required Python libraries:
-  ```bash
-  pillow >= 10.2.0
-  ```
-- Tkinter (usually included with standard Python installations)
+  - Pillow
+  - requests
 
 For the standalone `.exe` version, no additional dependencies are required.
 
@@ -31,15 +27,17 @@ For the standalone `.exe` version, no additional dependencies are required.
    git clone https://github.com/FengqianLin/Oblivionis-Music-Search-and-Downloader.git
    cd Oblivionis-Music-Search-and-Downloader
    ```
-
-2. **Install Dependencies** (if running the Python script):
+2. **Set up a Virtual Environment**：
    ```bash
    conda create -n OblivionisMusic python=3.11
    conda activate OblivionisMusic
-   pip install requirements.txt
+   ```
+3. **Install Dependencies** (if running the Python script):
+   ```bash
+   pip install -r requirements.txt
    ```
 
-3. **Run the Application**:
+4. **Run the Script**:
    - For the Python script:
      ```bash
      python Oblivionis.py
