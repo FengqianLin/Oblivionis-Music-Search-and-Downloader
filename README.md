@@ -31,8 +31,8 @@ For the standalone `.exe` version, no additional dependencies are required.
 
 1. **Clone the Repository**:
    ```bash
-   git clone https://github.com/yourusername/oblivionis.git
-   cd oblivionis
+   git clone https://github.com/FengqianLin/Oblivionis-Music-Search-and-Downloader.git
+   cd Oblivionis-Music-Search-and-Downloader
    ```
 
 2. **Install Dependencies** (if running the Python script):
