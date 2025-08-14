@@ -309,6 +309,11 @@ def download_selected():
 # ---------------- 设置窗口 ----------------
 def open_settings():
     win = tk.Toplevel(root)
+    try:
+        win.iconbitmap("assets/icon.ico")
+    except tk.TclError:
+        pass
+
     win.title("设置")
     win.geometry("420x450")
 
@@ -415,6 +420,10 @@ def show_album_cover(source, pic_id):
 
 # ---------------- GUI ----------------
 root = tk.Tk()
+try:
+    root.iconbitmap("assets/icon.ico")
+except tk.TclError:
+    pass
 root.title("音乐搜索与下载")
 root.geometry("1050x800")
 
