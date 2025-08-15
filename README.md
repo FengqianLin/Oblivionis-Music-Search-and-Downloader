@@ -29,7 +29,7 @@ For the standalone `.exe` version, no additional dependencies are required.
    ```
 2. **Set up a Virtual Environment**：
    ```bash
-   conda create -n OblivionisMusic python=3.11
+   conda create -n OblivionisMusic python=3.12
    conda activate OblivionisMusic
    ```
 3. **Install Dependencies** (if running the Python script):
