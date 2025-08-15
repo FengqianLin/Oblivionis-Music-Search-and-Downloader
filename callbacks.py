@@ -1,0 +1,394 @@
+import tkinter as tk
+from tkinter import ttk, filedialog, messagebox
+from PIL import Image, ImageTk
+from io import BytesIO
+import webbrowser
+import threading
+
+from download import *
+from search import *
+
+class AppCallbacks:
+    def __init__(self, root, ui):
+        self.root = root
+        self.ui = ui
+        self.config = load_config()
+        self.settings_window = None
+
+        self.current_keyword = ""
+        self.current_source = ""
+        self.current_search_type = ""
+        self.current_page = 1
+
+        self.ui.combo_source.set(self.config.get("default_source", "netease"))
+        self.ui.combo_search_type.set(self.config.get("default_search_type", "单曲/歌手搜索"))
+
+    def bind_callbacks(self):
+        self.ui.link.bind("<Button-1>", self.open_url)
+        self.ui.btn_search.config(command=self.handle_new_search)
+        self.ui.root.bind("<Return>", lambda event: self.handle_new_search())
+        self.ui.song_list.bind("<Configure>", self.on_tree_resize)
+        self.ui.song_list.bind("<Double-1>", self.on_item_click)
+        self.ui.btn_prev_page.config(command=self.handle_prev_page)
+        self.ui.btn_next_page.config(command=self.handle_next_page)
+        self.ui.btn_download.config(command=self.download_selected)
+        self.ui.btn_settings.config(command=self.open_settings)
+
+        self.root.bind_all("<Control-a>", self.tree_select_all, add='+')
+        self.ui.song_list.bind("<Button-1>", self._tree_start_select, add='+')
+        self.ui.song_list.bind("<B1-Motion>", self._tree_update_select, add='+')
+        self.ui.song_list.bind("<ButtonRelease-1>", self._tree_end_select, add='+')
+
+    # region update GUI
+    def update_song_list(self, resp):
+        self.ui.song_list.delete(*self.ui.song_list.get_children())
+        if not resp:
+            messagebox.showinfo("搜索提示", "未找到相关结果")
+            return
+
+        for song in resp:
+            self.ui.song_list.insert("", tk.END, values=(
+                song["id"], song["name"], song["artist"], song["album"], song["source"], song.get("pic_id", "")
+            ))
+        self.ui.song_list.yview_moveto(0)
+
+    def update_album_cover(self, img_data):
+        try:
+            img = Image.open(BytesIO(img_data))
+            img.thumbnail((MAX_COVER_SIZE, MAX_COVER_SIZE), Image.Resampling.LANCZOS)
+            photo = ImageTk.PhotoImage(img)
+            self.ui.album_label.config(image=photo, text="")
+            self.ui.album_label.image = photo
+        except Exception:
+            self.ui.album_label.config(image=None, text="封面加载失败")
+            self.ui.album_label.image = None
+
+    # endregion
+
+    # region threading
+    def handle_new_search(self):
+        keyword = self.ui.entry_keyword.get().strip()
+        if not keyword:
+            messagebox.showwarning("搜索提示", "请输入搜索内容")
+            return
+        source = self.ui.combo_source.get()
+        search_type = self.ui.combo_search_type.get()
+        self.search_music(keyword, source, search_type, page=1)
+
+    def search_music(self, keyword, source, search_type, page=1):
+        global search_id_counter
+        self.ui.song_list.delete(*self.ui.song_list.get_children())
+        self.ui.song_list.insert("", tk.END, values=("", "正在搜索，请稍候...", "", "", "", ""))
+        self.root.update_idletasks()
+
+        api_source = f"{source}_album" if search_type == "专辑搜索" else source
+        self.current_keyword = keyword
+        self.current_source = source
+        self.current_search_type = search_type
+        self.current_page = page
+
+        params = {
+            "types": "search", "source": api_source, "name": keyword,
+            "count": self.config.get("default_search_count", 20), "pages": page
+        }
+        search_id_counter += 1
+        thread = threading.Thread(target=search_worker, args=(params, search_id_counter), daemon=True)
+        thread.start()
+
+    def download_selected(self):
+        global download_tasks_total, download_tasks_completed, all_downloads_succeeded
+        items = self.ui.song_list.selection()
+        if not items:
+            messagebox.showwarning("下载提示", "请选择要下载的歌曲")
+            return
+
+        # get music save path
+        if self.config["default_music_path"] == "每次询问":
+            save_dir_music = filedialog.askdirectory(title="选择音乐保存位置", parent=self.root)
+            if not save_dir_music: return
+        else:
+            save_dir_music = self.config["default_music_path"]
+            if not os.path.isdir(save_dir_music):
+                try:
+                    os.makedirs(save_dir_music, exist_ok=True)
+                except Exception:
+                    messagebox.showerror("路径错误", f"歌曲路径\n '{save_dir_music}' \n无法创建，请检查设置")
+                    return
+
+        # get lyric save path
+        save_dir_lyric = None
+        if self.config.get("download_lyrics", True):
+            if self.config["default_lyric_path"] == "每次询问":
+                save_dir_lyric = filedialog.askdirectory(title="选择歌词保存位置", parent=self.root)
+                if not save_dir_lyric: return
+            else:
+                save_dir_lyric = self.config["default_lyric_path"]
+                if not os.path.isdir(save_dir_lyric):
+                    try:
+                        os.makedirs(save_dir_lyric, exist_ok=True)
+                    except Exception:
+                        messagebox.showerror("路径错误", f"歌词路径\n '{save_dir_lyric}' \n无法创建，请检查设置")
+                        return
+
+        # start downloading
+        self.ui.progress_var.set(0)
+        download_tasks_total = len(items)
+        download_tasks_completed = 0
+        all_downloads_succeeded = True
+        bitrate = self.config.get("default_bitrate", "320")
+
+        for item in items:
+            song_id, song_name, _, _, source, _ = self.ui.song_list.item(item, "values")
+            thread = threading.Thread(
+                target=download_worker,
+                args=(song_id, song_name, source, bitrate, save_dir_music, save_dir_lyric),
+                daemon=True
+            )
+            thread.start()
+
+    def process_queue(self):
+        global search_id_counter, download_tasks_total, download_tasks_completed, all_downloads_succeeded
+        # handle searching queue
+        try:
+            status, data, search_id = search_queue.get_nowait()
+            if search_id == search_id_counter:
+                if status == "success":
+                    self.update_song_list(data)
+                elif status == "error":
+                    self.ui.song_list.delete(*self.ui.song_list.get_children())
+                    messagebox.showerror("搜索歌曲错误", data)
+        except queue.Empty:
+            pass
+
+        # handle pic queue
+        try:
+            status, data, pic_id = pic_queue.get_nowait()
+            if status == "success":
+                self.update_album_cover(data)
+            elif status == "error":
+                messagebox.showerror("搜索封面错误", data)
+        except queue.Empty:
+            pass
+
+        # handle download queue
+        try:
+            status, data = download_queue.get_nowait()
+            if status in ("success", "error"):
+                download_tasks_completed += 1
+                if download_tasks_total > 0:
+                    progress = int(download_tasks_completed * 100 / download_tasks_total)
+                    self.ui.progress_var.set(progress)
+
+                if status == "error":
+                    all_downloads_succeeded = False
+                    messagebox.showerror("下载错误", data)
+
+                if download_tasks_completed >= download_tasks_total:
+                    if all_downloads_succeeded:
+                        messagebox.showinfo("下载完成", "所有选中歌曲下载完成")
+                    else:
+                        messagebox.showwarning("下载提示", "部分或全部歌曲下载失败，请检查弹出的错误信息")
+                    self.ui.progress_var.set(0)
+        except queue.Empty:
+            pass
+
+        self.root.after(100, self.process_queue)
+
+    # endregion
+
+    # region page
+    def handle_prev_page(self):
+        if self.current_keyword:
+            self.search_music(self.current_keyword, self.current_source, self.current_search_type,
+                              max(1, self.current_page - 1))
+
+    def handle_next_page(self):
+        if self.current_keyword:
+            self.search_music(self.current_keyword, self.current_source, self.current_search_type,
+                              self.current_page + 1)
+
+    # endregion
+
+    def open_settings(self):
+        if self.settings_window and self.settings_window.winfo_exists():
+            self.settings_window.lift()
+            self.settings_window.focus_set()
+            return
+
+        win = tk.Toplevel(self.root)
+        self.settings_window = win
+
+        try:
+            win.iconbitmap("assets/icon.ico")
+        except tk.Toplevel.tk.TclError:
+            pass
+
+        win.title("设置")
+        win.geometry("400x500")
+        win.minsize(300, 480)
+
+        canvas = tk.Canvas(win)
+        scroll_frame = tk.Frame(canvas)
+
+        scroll_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=scroll_frame, anchor="nw")
+
+        ui_font = self.ui.ui_font
+
+        # music source
+        tk.Label(scroll_frame, text="默认音乐源:", font=ui_font).pack(anchor="w", padx=10, pady=5)
+        cb_source = ttk.Combobox(scroll_frame, values=ALL_SOURCES, state="readonly", font=ui_font)
+        cb_source.set(self.config.get("default_source", "netease"))
+        cb_source.pack(fill="x", padx=10)
+
+        # search type
+        tk.Label(scroll_frame, text="默认搜索类型:", font=ui_font).pack(anchor="w", padx=10, pady=5)
+        cb_type = ttk.Combobox(scroll_frame, values=["单曲/歌手搜索", "专辑搜索"], state="readonly", font=ui_font)
+        cb_type.set(self.config.get("default_search_type", "单曲/歌手搜索"))
+        cb_type.pack(fill="x", padx=10)
+
+        # bitrate
+        tk.Label(scroll_frame, text="默认音质:", font=ui_font).pack(anchor="w", padx=10, pady=5)
+        cb_bitrate = ttk.Combobox(scroll_frame, values=BITRATES, state="readonly", font=ui_font)
+        cb_bitrate.set(self.config.get("default_bitrate", "320"))
+        cb_bitrate.pack(fill="x", padx=10)
+
+        # page len
+        tk.Label(scroll_frame, text="每页显示结果:", font=ui_font).pack(anchor="w", padx=10, pady=5)
+        cb_count = ttk.Combobox(scroll_frame, values=["10", "20", "30", "40", "50"], state="readonly", font=ui_font)
+        cb_count.set(str(self.config.get("default_search_count", 20)))
+        cb_count.pack(fill="x", padx=10)
+
+        # download lyric
+        download_lyrics_var = tk.BooleanVar()
+        download_lyrics_var.set(self.config.get("download_lyrics", True))
+        chk_download_lyrics = tk.Checkbutton(scroll_frame, text="下载歌词", variable=download_lyrics_var, font=ui_font)
+        chk_download_lyrics.pack(anchor="w", padx=10, pady=(10, 0))
+
+        # music save path
+        tk.Label(scroll_frame, text="默认歌曲保存路径:", font=ui_font).pack(anchor="w", padx=10, pady=5)
+        entry_music_path = tk.Entry(scroll_frame, width=40, font=ui_font)
+        entry_music_path.insert(0, self.config.get("default_music_path", "每次询问"))
+        entry_music_path.pack(fill="x", padx=10)
+        tk.Button(scroll_frame, text="选择路径", font=ui_font, command=lambda: (entry_music_path.delete(0, tk.END),
+                                                                                entry_music_path.insert(0,
+                                                                                                        filedialog.askdirectory(
+                                                                                                            parent=win) or "每次询问"))).pack(
+            anchor="w", padx=10, pady=(2, 5))
+
+        # lyric save path
+        tk.Label(scroll_frame, text="默认歌词保存路径:", font=ui_font).pack(anchor="w", padx=10, pady=5)
+        entry_lyric_path = tk.Entry(scroll_frame, width=40, font=ui_font)
+        entry_lyric_path.insert(0, self.config.get("default_lyric_path", "每次询问"))
+        entry_lyric_path.pack(fill="x", padx=10)
+        tk.Button(scroll_frame, text="选择路径", font=ui_font, command=lambda: (entry_lyric_path.delete(0, tk.END),
+                                                                                entry_lyric_path.insert(0,
+                                                                                                        filedialog.askdirectory(
+                                                                                                            parent=win) or "每次询问"))).pack(
+            anchor="w", padx=10, pady=(2, 5))
+
+
+        def on_settings_close():
+            self.settings_window = None
+            win.destroy()
+
+        def save_and_close():
+            self.config["default_source"] = cb_source.get()
+            self.config["default_search_type"] = cb_type.get()
+            self.config["default_bitrate"] = cb_bitrate.get()
+            self.config["default_search_count"] = int(cb_count.get())
+            self.config["download_lyrics"] = download_lyrics_var.get()
+            self.config["default_music_path"] = entry_music_path.get().strip() or "每次询问"
+            self.config["default_lyric_path"] = entry_lyric_path.get().strip() or "每次询问"
+
+            save_config(self.config)
+
+            self.ui.combo_source.set(self.config["default_source"])
+            self.ui.combo_search_type.set(self.config["default_search_type"])
+
+            messagebox.showinfo("提示", "设置已保存并立即生效", parent=win)
+            on_settings_close()
+
+        tk.Button(scroll_frame, text="保存设置", font=ui_font, command=save_and_close).pack(pady=20)
+        canvas.pack(side="left", fill="both", expand=True)
+
+        win.protocol("WM_DELETE_WINDOW", on_settings_close)
+
+    # region treeview item click
+    def open_url(self, event):
+        webbrowser.open("https://music.gdstudio.xyz")
+
+    def on_item_click(self, event):
+        item_id = self.ui.song_list.identify_row(event.y)
+        col = self.ui.song_list.identify_column(event.x)
+        if not item_id: return
+
+        values = self.ui.song_list.item(item_id, "values")
+        song_id, song_name, artist_name, album_name, source, pic_id = values
+        if pic_id: self.show_album_cover(source, pic_id)
+
+        target_keyword, search_type = None, None
+        if col == "#2":
+            target_keyword, search_type = song_name, "单曲/歌手搜索"
+        elif col == "#3":
+            target_keyword, search_type = artist_name, "单曲/歌手搜索"
+        elif col == "#4":
+            target_keyword, search_type = album_name, "专辑搜索"
+
+        if target_keyword:
+            self.ui.entry_keyword.delete(0, tk.END)
+            self.ui.entry_keyword.insert(0, target_keyword)
+            self.ui.combo_search_type.set(search_type)
+            self.handle_new_search()
+
+    def show_album_cover(self, source, pic_id):
+        params = {"types": "pic", "source": source, "id": pic_id, "size": 300}
+        self.ui.album_label.config(image=None, text="封面加载中...")
+        self.ui.album_label.image = None
+        threading.Thread(target=pic_worker, args=(params, pic_id), daemon=True).start()
+
+    def on_tree_resize(self, event):
+        total_width = event.width - 20
+        self.ui.song_list.column("id", width=80, stretch=tk.NO, anchor='center')
+        self.ui.song_list.column("音乐源", width=100, stretch=tk.NO, anchor='center')
+        remaining_width = total_width - 180
+        if remaining_width > 0:
+            self.ui.song_list.column("歌名", width=int(remaining_width * 0.40), minwidth=120)
+            self.ui.song_list.column("歌手", width=int(remaining_width * 0.30), minwidth=100)
+            self.ui.song_list.column("专辑", width=int(remaining_width * 0.30), minwidth=120)
+
+    def tree_select_all(self, event):
+        self.ui.song_list.selection_add(self.ui.song_list.get_children())
+        return "break"
+
+    def _get_row_at_y(self, y):
+        return self.ui.song_list.identify_row(y)
+
+    def _tree_start_select(self, event):
+        self.ui.song_list._rb_start_y = event.y
+        self.ui.song_list._rb_start_item = self._get_row_at_y(event.y)
+
+    def _tree_update_select(self, event):
+        if not hasattr(self.ui.song_list, "_rb_start_y"): return
+        cur_item = self._get_row_at_y(event.y)
+        if cur_item is None: return
+
+        all_items = self.ui.song_list.get_children()
+        try:
+            from_idx = all_items.index(self.ui.song_list._rb_start_item)
+            to_idx = all_items.index(cur_item)
+        except ValueError:
+            return
+
+        first, last = min(from_idx, to_idx), max(from_idx, to_idx)
+        self.ui.song_list.selection_set(all_items[first:last + 1])
+
+    def _tree_end_select(self, event):
+        if hasattr(self.ui.song_list, "_rb_start_y"):
+            del self.ui.song_list._rb_start_y
+            del self.ui.song_list._rb_start_item
+    # endregion
