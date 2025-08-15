@@ -2,9 +2,24 @@ import queue
 import requests
 import os
 import json
+import sys
+
+# 获取用户数据目录
+def get_user_data_dir():
+    if sys.platform.startswith("win"):
+        base_dir = os.getenv("APPDATA")
+    elif sys.platform.startswith("darwin"):
+        base_dir = os.path.expanduser("~/Library/Application Support")
+    else:
+        base_dir = os.path.expanduser("~/.config")
+
+    app_dir = os.path.join(base_dir, "Oblivionis")
+    os.makedirs(app_dir, exist_ok=True)
+    return app_dir
+
+CONFIG_FILE = os.path.join(get_user_data_dir(), "config.json")
 
 BASE_URL = "https://music-api.gdstudio.xyz/api.php"
-CONFIG_FILE = "config.json"
 
 ALL_SOURCES = [
     "netease", "tencent", "tidal", "spotify", "ytmusic", "qobuz", "joox",
@@ -41,7 +56,6 @@ def load_config():
             "default_search_type": "单曲/歌手搜索",
             "default_bitrate": "320",
             "download_lyrics": True,
-            "max_downloads": 3,
             "default_music_path": "每次询问",
             "default_lyric_path": "每次询问",
         }
