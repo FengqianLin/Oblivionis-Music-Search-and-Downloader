@@ -3,6 +3,8 @@ import sys
 from tkinter import messagebox
 from GUI import MainUI
 from callbacks import AppCallbacks
+import os
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 def hide_console():
     if sys.platform.startswith('win'):
