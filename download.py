@@ -4,12 +4,13 @@ from mutagen.id3 import ID3, APIC, USLT  # For MP3 advanced (artwork, lyrics)
 from mutagen.flac import FLAC, Picture  # For FLAC
 from mutagen import MutagenError
 
-def download_worker(song_id, song_name, artist, album, source, pic_id, bitrate, save_dir_music, save_dir_lyric):
+def download_worker(song_id, song_name, artist, album, source, pic_id, bitrate, save_dir_music, save_dir_lyric, semaphore):
     """
     download thread
     """
-    global all_downloads_succeeded
+    semaphore.acquire()
     try:
+        global all_downloads_succeeded
         url_params = {
             "types": "url",
             "source": source,
@@ -119,3 +120,6 @@ def download_worker(song_id, song_name, artist, album, source, pic_id, bitrate, 
     except Exception as e:
         all_downloads_succeeded = False
         download_queue.put(("error", f"下载\n '{song_name}' \n时发生未知错误: {e}"))
+
+    finally:
+        semaphore.release()

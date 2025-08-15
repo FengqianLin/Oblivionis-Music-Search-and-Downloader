@@ -22,6 +22,7 @@ class AppCallbacks:
 
         self.ui.combo_source.set(self.config.get("default_source", "netease"))
         self.ui.combo_search_type.set(self.config.get("default_search_type", "单曲/歌手搜索"))
+        self.download_semaphore = threading.Semaphore(self.config.get("max_concurrent_downloads", 3))
 
     def bind_callbacks(self):
         self.ui.link.bind("<Button-1>", self.open_url)
@@ -85,6 +86,7 @@ class AppCallbacks:
         api_source = f"{source}_album" if search_type == "专辑搜索" else \
                         (f"{source}_playlist" if search_type == "网易云歌单搜索" else source)
         self.current_keyword = keyword
+        print(self.current_keyword)
         self.current_source = source
         self.current_search_type = search_type
         self.current_page = page
@@ -152,7 +154,7 @@ class AppCallbacks:
             song_id, song_name, artist, album, source, pic_id = self.ui.song_list.item(item, "values")
             thread = threading.Thread(
                 target=download_worker,
-                args=(song_id, song_name, artist, album, source, pic_id, bitrate, save_dir_music, save_dir_lyric),
+                args=(song_id, song_name, artist, album, source, pic_id, bitrate, save_dir_music, save_dir_lyric, self.download_semaphore),
                 daemon=True
             )
             thread.start()
@@ -260,6 +262,12 @@ class AppCallbacks:
         chk_download_lyrics = tk.Checkbutton(scroll_frame, text="下载歌词", variable=download_lyrics_var, font=ui_font)
         chk_download_lyrics.pack(anchor="w", padx=10, pady=(10, 0))
 
+        # concurrent downloads
+        tk.Label(scroll_frame, text="同时下载任务数:", font=ui_font).pack(anchor="w", padx=10, pady=5)
+        cb_concurrency = ttk.Combobox(scroll_frame, values=["1", "2", "3", "4", "5", "6", "7", "8"], state="readonly", font=ui_font)
+        cb_concurrency.set(str(self.config.get("max_downloads", 5)))
+        cb_concurrency.pack(fill="x", padx=10)
+
         # music save path
         tk.Label(scroll_frame, text="默认歌曲保存路径:", font=ui_font).pack(anchor="w", padx=10, pady=5)
         entry_music_path = tk.Entry(scroll_frame, width=40, font=ui_font)
@@ -293,11 +301,13 @@ class AppCallbacks:
             self.config["default_bitrate"] = cb_bitrate.get()
             self.config["default_search_count"] = int(cb_count.get())
             self.config["download_lyrics"] = download_lyrics_var.get()
+            self.config["max_downloads"] = int(cb_concurrency.get())
             self.config["default_music_path"] = entry_music_path.get().strip() or "每次询问"
             self.config["default_lyric_path"] = entry_lyric_path.get().strip() or "每次询问"
 
             save_config(self.config)
 
+            self.download_semaphore = threading.Semaphore(self.config["max_downloads"])
             self.ui.combo_source.set(self.config["default_source"])
             self.ui.combo_search_type.set(self.config["default_search_type"])
 

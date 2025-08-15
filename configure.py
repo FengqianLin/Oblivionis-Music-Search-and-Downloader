@@ -41,6 +41,7 @@ def load_config():
             "default_search_type": "单曲/歌手搜索",
             "default_bitrate": "320",
             "download_lyrics": True,
+            "max_downloads": 3,
             "default_music_path": "每次询问",
             "default_lyric_path": "每次询问",
         }
