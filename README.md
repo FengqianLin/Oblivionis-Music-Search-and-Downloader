@@ -72,6 +72,16 @@ Oblivionis uses the [GD Studio Music API](https://music.gdstudio.xyz) to fetch m
 - **Album Cover**: `https://music-api.gdstudio.xyz/api.php?types=pic&source=[MUSIC_SOURCE]&id=[PIC_ID]&size=[SIZE]`
 - **Lyrics**: `https://music-api.gdstudio.xyz/api.php?types=lyric&source=[MUSIC_SOURCE]&id=[LYRIC_ID]`
 
+## TODO
+
+- [ ] Fix bug in album search
+- [ ] Save playlist to disk (compatible with web version)
+  - [ ] Import/Switch playlist
+- [ ] Accelerate result display
+- [ ] Cross-platform support
+  - [ ] macOS
+  - [ ] Android
+
 ## Contributing
 
 Contributions are welcome! To contribute:
