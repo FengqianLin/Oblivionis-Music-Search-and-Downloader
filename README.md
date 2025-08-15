@@ -17,6 +17,7 @@ To run the Python script, ensure you have the following dependencies installed:
 - Required Python libraries:
   - Pillow
   - requests
+  - mutagen
 
 For the standalone `.exe` version, no additional dependencies are required.
 
