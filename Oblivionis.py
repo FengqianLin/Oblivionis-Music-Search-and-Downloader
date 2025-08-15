@@ -37,9 +37,11 @@ session = requests.Session()
 settings_window = None
 
 # Global UI scaling vars
-ui_font = None
-# New: Max font size for scaling
-MAX_UI_FONT_SIZE = 12
+# MODIFICATION: Set a fixed font size
+FIXED_UI_FONT_SIZE = 10
+# MODIFICATION: Use a more aesthetic and cross-compatible font
+UI_FONT_FAMILY = "Segoe UI"  # A common, clean font on Windows and often available on other systems
+# MODIFICATION: Removed the font creation from here to fix "RuntimeError: Too early to use font"
 
 # ---------------- 配置管理 ----------------
 def load_config():
@@ -143,14 +145,14 @@ def _update_album_cover(img_data):
     """update album_label after search (store original and trigger resize)"""
     try:
         img = Image.open(BytesIO(img_data))
-        album_label.original_img = img  # 保存原图
-        # 触发一次重绘
-        resize_album_cover(type('Event', (object,), {
-            'width': right_frame.winfo_width(),
-            'height': right_frame.winfo_height()
-        })())
+        # MODIFICATION: Resize the image to fit the fixed-size container
+        img.thumbnail((MAX_COVER_SIZE, MAX_COVER_SIZE), Image.Resampling.LANCZOS)
+        photo = ImageTk.PhotoImage(img)
+        album_label.config(image=photo, text='')
+        album_label.image = photo  # Keep a reference to prevent garbage collection
     except Exception:
         album_label.config(image=None, text='封面加载失败')
+        album_label.image = None
 
 def process_queue():
     """
@@ -193,6 +195,10 @@ def search_music(keyword, source, search_type, page=1):
     song_list.delete(*song_list.get_children())
     song_list.insert("", tk.END, values=("", "正在搜索，请稍候...", "", "", "", ""))
     root.update_idletasks()
+
+    # MODIFICATION: Set album_label to "加载中..." before starting search
+    album_label.config(image=None, text="加载中...")
+    album_label.image = None
 
     api_source = f"{source}_album" if search_type == "专辑搜索" else source
 
@@ -348,42 +354,42 @@ def open_settings():
     canvas.create_window((0, 0), window=scroll_frame, anchor="nw")
     canvas.configure(yscrollcommand=scrollbar.set)
 
-    tk.Label(scroll_frame, text="默认音乐源:").pack(anchor="w", padx=10, pady=5)
-    cb_source = ttk.Combobox(scroll_frame, values=ALL_SOURCES, state="readonly")
+    tk.Label(scroll_frame, text="默认音乐源:", font=ui_font).pack(anchor="w", padx=10, pady=5)
+    cb_source = ttk.Combobox(scroll_frame, values=ALL_SOURCES, state="readonly", font=ui_font)
     cb_source.set(config.get("default_source", "netease"))
     cb_source.pack(anchor="w", padx=10)
 
-    tk.Label(scroll_frame, text="默认搜索类型:").pack(anchor="w", padx=10, pady=5)
-    cb_type = ttk.Combobox(scroll_frame, values=["单曲/歌手搜索", "专辑搜索"], state="readonly")
+    tk.Label(scroll_frame, text="默认搜索类型:", font=ui_font).pack(anchor="w", padx=10, pady=5)
+    cb_type = ttk.Combobox(scroll_frame, values=["单曲/歌手搜索", "专辑搜索"], state="readonly", font=ui_font)
     cb_type.set(config.get("default_search_type", "单曲/歌手搜索"))
     cb_type.pack(anchor="w", padx=10)
 
-    tk.Label(scroll_frame, text="默认音质:").pack(anchor="w", padx=10, pady=5)
-    cb_bitrate = ttk.Combobox(scroll_frame, values=BITRATES, state="readonly")
+    tk.Label(scroll_frame, text="默认音质:", font=ui_font).pack(anchor="w", padx=10, pady=5)
+    cb_bitrate = ttk.Combobox(scroll_frame, values=BITRATES, state="readonly", font=ui_font)
     cb_bitrate.set(config.get("default_bitrate", "320"))
     cb_bitrate.pack(anchor="w", padx=10)
 
     download_lyrics_var = tk.BooleanVar()
     download_lyrics_var.set(config.get("download_lyrics", True))
-    chk_download_lyrics = tk.Checkbutton(scroll_frame, text="下载歌词", variable=download_lyrics_var)
+    chk_download_lyrics = tk.Checkbutton(scroll_frame, text="下载歌词", variable=download_lyrics_var, font=ui_font)
     chk_download_lyrics.pack(anchor="w", padx=10, pady=(10, 0))
 
-    tk.Label(scroll_frame, text="每页显示结果:").pack(anchor="w", padx=10, pady=5)
-    cb_count = ttk.Combobox(scroll_frame, values=["10", "20", "30", "40", "50"], state="readonly")
+    tk.Label(scroll_frame, text="每页显示结果:", font=ui_font).pack(anchor="w", padx=10, pady=5)
+    cb_count = ttk.Combobox(scroll_frame, values=["10", "20", "30", "40", "50"], state="readonly", font=ui_font)
     cb_count.set(config.get("default_search_count", 20))
     cb_count.pack(anchor="w", padx=10)
 
-    tk.Label(scroll_frame, text="默认歌曲保存路径:").pack(anchor="w", padx=10, pady=5)
-    entry_music_path = tk.Entry(scroll_frame, width=40)
+    tk.Label(scroll_frame, text="默认歌曲保存路径:", font=ui_font).pack(anchor="w", padx=10, pady=5)
+    entry_music_path = tk.Entry(scroll_frame, width=40, font=ui_font)
     entry_music_path.insert(0, config.get("default_music_path", "每次询问"))
     entry_music_path.pack(anchor="w", padx=10)
-    tk.Button(scroll_frame, text="选择路径", command=lambda: entry_music_path.delete(0, tk.END) or entry_music_path.insert(0, filedialog.askdirectory(parent=win))).pack(anchor="w", padx=10)
+    tk.Button(scroll_frame, text="选择路径", font=ui_font, command=lambda: entry_music_path.delete(0, tk.END) or entry_music_path.insert(0, filedialog.askdirectory(parent=win))).pack(anchor="w", padx=10)
 
-    tk.Label(scroll_frame, text="默认歌词保存路径:").pack(anchor="w", padx=10, pady=5)
-    entry_lyric_path = tk.Entry(scroll_frame, width=40)
+    tk.Label(scroll_frame, text="默认歌词保存路径:", font=ui_font).pack(anchor="w", padx=10, pady=5)
+    entry_lyric_path = tk.Entry(scroll_frame, width=40, font=ui_font)
     entry_lyric_path.insert(0, config.get("default_lyric_path", "每次询问"))
     entry_lyric_path.pack(anchor="w", padx=10)
-    tk.Button(scroll_frame, text="选择路径", command=lambda: entry_lyric_path.delete(0, tk.END) or entry_lyric_path.insert(0, filedialog.askdirectory(parent=win))).pack(anchor="w", padx=10)
+    tk.Button(scroll_frame, text="选择路径", font=ui_font, command=lambda: entry_lyric_path.delete(0, tk.END) or entry_lyric_path.insert(0, filedialog.askdirectory(parent=win))).pack(anchor="w", padx=10)
 
     def on_settings_close():
         """Handle window close event for both save button and 'X' button."""
@@ -404,7 +410,7 @@ def open_settings():
         messagebox.showinfo("提示", "设置已保存并立即生效", parent=win)
         on_settings_close() # Use the custom close handler
 
-    tk.Button(scroll_frame, text="保存设置", command=save_and_close).pack(pady=20)
+    tk.Button(scroll_frame, text="保存设置", font=ui_font, command=save_and_close).pack(pady=20)
 
     canvas.pack(side="left", fill="both", expand=True)
     win.protocol("WM_DELETE_WINDOW", on_settings_close) # Bind 'X' button to the handler
@@ -443,7 +449,7 @@ def show_album_cover(source, pic_id):
         "id": pic_id,
         "size": 300
     }
-    album_label.config(image=None, text="封面加载中...")
+    album_label.config(image=None, text="加载中...")
     album_label.image = None
 
     thread = threading.Thread(target=_pic_worker, args=(params, pic_id), daemon=True)
@@ -458,34 +464,23 @@ except tk.TclError:
 root.title("音乐搜索与下载")
 root.geometry("800x800")
 
+# NEW: Set a minimum size for the main window to ensure usability.
+root.minsize(800, 600)
+
+# MODIFICATION: This block is moved here to fix the font-related RuntimeError
+# Define a font object after the root window has been created.
+ui_font = tkFont.Font(family=UI_FONT_FAMILY, size=FIXED_UI_FONT_SIZE)
+
 # ---- Global UI scaling ----
-def update_ui_scale(event):
-    """
-    Dynamically scale fonts and widget sizes based on window width.
-    This function scales ALL widgets except the Treeview list content.
-    """
-    global ui_font
-    if root.winfo_width() < 100:
-        return
-
-    scale_factor = root.winfo_width() / 800
-    # Apply max size limit
-    new_font_size = min(MAX_UI_FONT_SIZE, max(8, int(10 * scale_factor)))
-    ui_font = tkFont.Font(family="Helvetica", size=new_font_size)
-
-    # Update styles
-    style = ttk.Style()
-    style.configure("TButton", font=ui_font)
-    style.configure("TEntry", font=ui_font)
-    style.configure("TCombobox", font=ui_font)
-    style.configure("TLabel", font=ui_font)
-
-    # Manually update specific widgets
-    link.config(font=ui_font)
+# The scaling function is removed as fonts are now fixed.
+style = ttk.Style()
+style.configure('.', font=ui_font)
+style.configure("Treeview.Heading", font=(UI_FONT_FAMILY, FIXED_UI_FONT_SIZE, 'bold'))
+style.configure("Treeview", font=ui_font)
 
 # ---- Responsive sizing constants ----
-MIN_COVER_SIZE = 120
-MAX_COVER_SIZE = 280
+# MODIFICATION: Change MAX_COVER_SIZE to 3/4 of its original value (280 * 0.75 = 210).
+MAX_COVER_SIZE = 210
 
 # MODIFICATION: Use grid layout for the entire window
 root.grid_columnconfigure(0, weight=1)
@@ -497,7 +492,7 @@ header_frame.grid(row=0, column=0, sticky="ew", padx=10, pady=(5,0))
 
 link = tk.Label(header_frame,
                 text="GD音乐台 (music.gdstudio.xyz)",
-                fg="blue", cursor="hand2")
+                fg="blue", cursor="hand2", font=ui_font)
 link.pack()
 
 def open_url(event):
@@ -540,25 +535,17 @@ btn_search = ttk.Button(left_frame, text="搜索", command=handle_new_search)
 btn_search.grid(row=3, column=0, sticky="w", padx=10, pady=(5,10))
 
 # right frame
-tk.Label(right_frame, text="专辑封面").grid(row=0, column=0, pady=5)
-album_label = tk.Label(right_frame)
-album_label.grid(row=1, column=0, padx=5, pady=5, sticky="nsew")
+# MODIFICATION: Use a Frame as a container to fix the size for the album cover.
+album_container = tk.Frame(right_frame, width=MAX_COVER_SIZE, height=MAX_COVER_SIZE)
+album_container.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
+album_container.pack_propagate(False)
 
-def resize_album_cover(event):
-    if hasattr(album_label, 'original_img'):
-        avail = max(0, min(event.width, event.height - 30))
-        if avail < MIN_COVER_SIZE:
-            album_label.config(image=None, text='封面隐藏')
-            album_label.image = None
-            return
-        size = min(MAX_COVER_SIZE, avail)
-        img = album_label.original_img.copy()
-        img.thumbnail((size, size), Image.Resampling.LANCZOS)
-        photo = ImageTk.PhotoImage(img)
-        album_label.config(image=photo, text='')
-        album_label.image = photo
+# MODIFICATION: The album label is now inside the container.
+album_label = tk.Label(album_container, text="无封面", font=ui_font)
+album_label.pack(expand=True, fill=tk.BOTH)
 
-right_frame.bind('<Configure>', resize_album_cover)
+# MODIFICATION: The separate "专辑封面" label is removed as album_label now has a default text.
+# The `resize_album_cover` function and its binding are removed as the size is now fixed.
 
 # MODIFICATION: song_list frame in grid
 song_list_frame = tk.Frame(root)
@@ -619,7 +606,7 @@ btn_settings.grid(row=1, column=1, sticky="ew")
 # MODIFICATION: status frame in grid
 status_frame = tk.Frame(root)
 status_frame.grid(row=5, column=0, sticky="ew")
-tk.Label(status_frame, text="下载进度：").grid(row=0, column=0, padx=10, pady=6, sticky="w")
+tk.Label(status_frame, text="下载进度：", font=ui_font).grid(row=0, column=0, padx=10, pady=6, sticky="w")
 progress_var = tk.IntVar()
 progress_bar = ttk.Progressbar(status_frame, variable=progress_var, maximum=100)
 progress_bar.grid(row=0, column=1, padx=(0,10), pady=6, sticky="ew")
@@ -665,10 +652,13 @@ def tree_end_select(event):
 # 绑定
 root.bind_all("<Control-a>", tree_select_all, add='+')
 root.bind("<Return>", lambda event: handle_new_search())
-root.bind("<Configure>", update_ui_scale) # Bind global scaling function
+# MODIFICATION: The font scaling binding is removed.
 song_list.bind("<Button-1>", tree_start_select, add='+')
 song_list.bind("<B1-Motion>", tree_update_select, add='+')
 song_list.bind("<ButtonRelease-1>", tree_end_select, add='+')
+
+# MODIFICATION: Apply fixed font size to Treeview heading
+style.configure("Treeview.Heading", font=(UI_FONT_FAMILY, FIXED_UI_FONT_SIZE, 'bold'))
 
 process_queue()
 root.protocol("WM_DELETE_WINDOW", on_closing)
