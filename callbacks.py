@@ -47,8 +47,9 @@ class AppCallbacks:
             return
 
         for song in resp:
+            artist_str = ' / '.join(song["artist"]) if isinstance(song["artist"], list) else song["artist"]
             self.ui.song_list.insert("", tk.END, values=(
-                song["id"], song["name"], song["artist"], song["album"], song["source"], song.get("pic_id", "")
+                song["id"], song["name"], artist_str, song["album"], song["source"], song.get("pic_id", "")
             ))
         self.ui.song_list.yview_moveto(0)
 
@@ -95,6 +96,15 @@ class AppCallbacks:
         thread = threading.Thread(target=search_worker, args=(params, search_id_counter), daemon=True)
         thread.start()
 
+    def handle_prev_page(self):
+        if self.current_page > 1:
+            self.current_page -= 1
+            self.search_music(self.current_keyword, self.current_source, self.current_search_type, self.current_page)
+
+    def handle_next_page(self):
+        self.current_page += 1
+        self.search_music(self.current_keyword, self.current_source, self.current_search_type, self.current_page)
+
     def download_selected(self):
         global download_tasks_total, download_tasks_completed, all_downloads_succeeded
         items = self.ui.song_list.selection()
@@ -138,10 +148,10 @@ class AppCallbacks:
         bitrate = self.config.get("default_bitrate", "320")
 
         for item in items:
-            song_id, song_name, _, _, source, _ = self.ui.song_list.item(item, "values")
+            song_id, song_name, artist, album, source, pic_id = self.ui.song_list.item(item, "values")
             thread = threading.Thread(
                 target=download_worker,
-                args=(song_id, song_name, source, bitrate, save_dir_music, save_dir_lyric),
+                args=(song_id, song_name, artist, album, source, pic_id, bitrate, save_dir_music, save_dir_lyric),
                 daemon=True
             )
             thread.start()
@@ -185,10 +195,9 @@ class AppCallbacks:
 
                 if download_tasks_completed >= download_tasks_total:
                     if all_downloads_succeeded:
-                        messagebox.showinfo("下载完成", "所有选中歌曲下载完成")
+                        messagebox.showinfo("下载完成", "所有选中歌曲下载成功！")
                     else:
-                        messagebox.showwarning("下载提示", "部分或全部歌曲下载失败，请检查弹出的错误信息")
-                    self.ui.progress_var.set(0)
+                        messagebox.showwarning("下载完成", "部分歌曲下载失败，请检查错误提示。")
         except queue.Empty:
             pass
 
@@ -196,46 +205,27 @@ class AppCallbacks:
 
     # endregion
 
-    # region page
-    def handle_prev_page(self):
-        if self.current_keyword:
-            self.search_music(self.current_keyword, self.current_source, self.current_search_type,
-                              max(1, self.current_page - 1))
-
-    def handle_next_page(self):
-        if self.current_keyword:
-            self.search_music(self.current_keyword, self.current_source, self.current_search_type,
-                              self.current_page + 1)
-
-    # endregion
-
     def open_settings(self):
-        if self.settings_window and self.settings_window.winfo_exists():
+        if self.settings_window is not None:
             self.settings_window.lift()
-            self.settings_window.focus_set()
             return
 
         win = tk.Toplevel(self.root)
-        self.settings_window = win
-
+        win.title("设置")
+        win.geometry("400x600")
+        win.minsize(300, 400)
         try:
             win.iconbitmap("assets/icon.ico")
-        except tk.Toplevel.tk.TclError:
+        except tk.TclError:
             pass
 
-        win.title("设置")
-        win.geometry("400x500")
-        win.minsize(300, 480)
-
         canvas = tk.Canvas(win)
+        scrollbar = ttk.Scrollbar(win, orient="vertical", command=canvas.yview)
         scroll_frame = tk.Frame(canvas)
-
-        scroll_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
-
+        scroll_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
         canvas.create_window((0, 0), window=scroll_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        scrollbar.pack(side="right", fill="y")
 
         ui_font = self.ui.ui_font
 
@@ -365,7 +355,7 @@ class AppCallbacks:
         self.ui.song_list.selection_add(self.ui.song_list.get_children())
         return "break"
 
-    def _get_row_at_y(self, y):
+    def _get_row_at_y(self,  y):
         return self.ui.song_list.identify_row(y)
 
     def _tree_start_select(self, event):
