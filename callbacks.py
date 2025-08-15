@@ -87,7 +87,6 @@ class AppCallbacks:
         api_source = f"{source}_album" if search_type == "专辑搜索" else \
                         (f"{source}_playlist" if search_type == "网易云歌单搜索" else source)
         self.current_keyword = keyword
-        print(self.current_keyword)
         self.current_source = source
         self.current_search_type = search_type
         self.current_page = page
@@ -96,6 +95,11 @@ class AppCallbacks:
             "types": "search", "source": api_source, "name": keyword,
             "count": self.config.get("default_search_count", 20), "pages": page
         }
+        # precise playlist search
+        if search_type == "网易云歌单搜索" and self.current_keyword.isdigit() and len(self.current_keyword) >= 5:
+            params = {
+                "types": "playlist", "id": self.current_keyword
+            }
         search_id_counter += 1
         thread = threading.Thread(target=search_worker, args=(params, search_id_counter), daemon=True)
         thread.start()
@@ -333,11 +337,13 @@ class AppCallbacks:
     def on_item_click(self, event):
         item_id = self.ui.song_list.identify_row(event.y)
         col = self.ui.song_list.identify_column(event.x)
-        if not item_id: return
+        if not item_id:
+            return
 
         values = self.ui.song_list.item(item_id, "values")
         song_id, song_name, artist_name, album_name, source, pic_id = values
-        if pic_id: self.show_album_cover(source, pic_id)
+        if pic_id:
+            self.show_album_cover(source, pic_id)
 
         target_keyword, search_type = None, None
         if col == "#2":
