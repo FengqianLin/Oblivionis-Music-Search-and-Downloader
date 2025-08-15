@@ -51,15 +51,17 @@ For the `.exe` version, download `Oblivionis.exe` from the [Releases](https://gi
    - Enter a keyword (song, artist, or album name) in the search bar.
    - Select a music source (e.g., NetEase, Kuwo) and search type (song/artist or album).
    - Click the "搜索" button to display results.
-   - To search by an artist or album from your current results, double-click the artist or album cell for any song.
-3. **View Album Covers**: Double-click a song in the results to fetch and display its album cover.
+   - To search by an artist, album or playlist from your current results, double-click the artist/album/playlist cell for any song.
+3. **View Album Covers**: Double-click the id or source cell in the results to fetch and display its album cover.
 4. **Download Music**:
    - Select one or more songs from the results (use `Ctrl+A` to select all or drag to select multiple. You can also use `ctrl` or `shift` to select).
    - Click "下载选中歌曲" and choose save directories for music and lyrics (if not predefined in settings).
    - Monitor the download progress via the progress bar.
+   - Now music metadata can also be downloaded.
 5. **Customize Settings**:
-   - Click the "设置" button to configure default music source, search type, bitrate, and save paths.
+   - Click the "设置" button to configure default music source, search type, bitrate, save paths, etc.
    - Save settings to apply them immediately and persist across sessions.
+**Note**: A high "同时下载任务数" could cause various issues. We recommend keeping it at 5 or below.
 
 ## API Information
 
