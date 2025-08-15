@@ -40,7 +40,7 @@ For the standalone `.exe` version, no additional dependencies are required.
 
 4. **Run the Script**:
    ```bash
-   python Oblivionis.py
+   python main.py
    ```
 For the `.exe` version, download `Oblivionis.exe` from the [Releases](https://github.com/FengqianLin/Oblivionis-Music-Search-and-Downloader/releases) page and double-click to run.
 
@@ -60,8 +60,6 @@ For the `.exe` version, download `Oblivionis.exe` from the [Releases](https://gi
 5. **Customize Settings**:
    - Click the "设置" button to configure default music source, search type, bitrate, and save paths.
    - Save settings to apply them immediately and persist across sessions.
-6. **Cookie Management**:
-   - This app automatically creates a cookie file `session_cookies.pkl`. You can safely delete this file at any time.
 
 ## API Information
 
