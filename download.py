@@ -110,16 +110,16 @@ def download_worker(song_id, song_name, artist, album, source, pic_id, bitrate, 
 
     except requests.exceptions.Timeout:
         all_downloads_succeeded = False
-        download_queue.put(("error", f"下载\n '{song_name}' \n时连接超时"))
+        download_queue.put(("error", f"'{song_name}' \n下载时连接超时"))
     except requests.exceptions.RequestException as e:
         all_downloads_succeeded = False
-        download_queue.put(("error", f"下载\n '{song_name}' \n时发生网络错误: {e}"))
+        download_queue.put(("error", f"'{song_name}' \n下载时发生网络错误: {e}"))
     except MutagenError as e:
         all_downloads_succeeded = False
-        download_queue.put(("error", f"元数据写入\n '{song_name}' \n失败: {e}"))
+        download_queue.put(("error", f"'{song_name}' \n元数据写入失败: {e}"))
     except Exception as e:
         all_downloads_succeeded = False
-        download_queue.put(("error", f"下载\n '{song_name}' \n时发生未知错误: {e}"))
+        download_queue.put(("error", f"'{song_name}' \n下载时发生未知错误: {e}"))
 
     finally:
         semaphore.release()

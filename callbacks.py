@@ -14,6 +14,7 @@ class AppCallbacks:
         self.ui = ui
         self.config = load_config()
         self.settings_window = None
+        self.download_errors = []
 
         self.current_keyword = ""
         self.current_source = ""
@@ -148,6 +149,7 @@ class AppCallbacks:
         download_tasks_total = len(items)
         download_tasks_completed = 0
         all_downloads_succeeded = True
+        self.download_errors = []
         bitrate = self.config.get("default_bitrate", "320")
 
         for item in items:
@@ -194,13 +196,16 @@ class AppCallbacks:
 
                 if status == "error":
                     all_downloads_succeeded = False
-                    messagebox.showerror("下载错误", data)
+                    self.download_errors.append(data)
 
                 if download_tasks_completed >= download_tasks_total:
                     if all_downloads_succeeded:
                         messagebox.showinfo("下载完成", "所有选中歌曲下载成功！")
                     else:
-                        messagebox.showwarning("下载完成", "部分歌曲下载失败，请检查错误提示。")
+                        success_count = download_tasks_total - len(self.download_errors)
+                        error_summary = f"下载完成。成功 {success_count} 个, 失败 {len(self.download_errors)} 个。\n\n失败详情:\n"
+                        detailed_errors = "\n".join(self.download_errors)
+                        messagebox.showwarning("下载完成", error_summary + detailed_errors)
         except queue.Empty:
             pass
 
@@ -209,11 +214,13 @@ class AppCallbacks:
     # endregion
 
     def open_settings(self):
-        if self.settings_window is not None:
+        if self.settings_window is not None and self.settings_window.winfo_exists():
             self.settings_window.lift()
+            self.settings_window.focus_force()
             return
 
         win = tk.Toplevel(self.root)
+        self.settings_window = win
         win.title("设置")
         win.geometry("400x600")
         win.minsize(300, 400)
