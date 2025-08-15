@@ -2,6 +2,7 @@ import requests
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from PIL import Image, ImageTk
+import tkinter.font as tkFont
 import os, json
 from io import BytesIO
 import webbrowser
@@ -31,6 +32,14 @@ search_id_counter = 0
 
 # Session accelerates search
 session = requests.Session()
+
+# MODIFICATION: Add a global tracker for the settings window
+settings_window = None
+
+# Global UI scaling vars
+ui_font = None
+# New: Max font size for scaling
+MAX_UI_FONT_SIZE = 12
 
 # ---------------- 配置管理 ----------------
 def load_config():
@@ -131,18 +140,17 @@ def _pic_worker(params, pic_id):
         pic_queue.put(("error", f"图片加载失败: {e}", pic_id))
 
 def _update_album_cover(img_data):
-    """
-    update album_label after search
-    """
+    """update album_label after search (store original and trigger resize)"""
     try:
         img = Image.open(BytesIO(img_data))
-        max_width, max_height = 250, 250
-        img.thumbnail((max_width, max_height), Image.Resampling.LANCZOS)
-        photo = ImageTk.PhotoImage(img)
-        album_label.config(image=photo, text="")
-        album_label.image = photo
+        album_label.original_img = img  # 保存原图
+        # 触发一次重绘
+        resize_album_cover(type('Event', (object,), {
+            'width': right_frame.winfo_width(),
+            'height': right_frame.winfo_height()
+        })())
     except Exception:
-        album_label.config(image=None, text="封面加载失败")
+        album_label.config(image=None, text='封面加载失败')
 
 def process_queue():
     """
@@ -310,7 +318,16 @@ def download_selected():
 
 # ---------------- 设置窗口 ----------------
 def open_settings():
+    # MODIFICATION: Implement singleton window behavior
+    global settings_window
+    if settings_window and settings_window.winfo_exists():
+        settings_window.lift()
+        settings_window.focus_set()
+        return
+
     win = tk.Toplevel(root)
+    settings_window = win # Track the new window instance
+
     try:
         win.iconbitmap("assets/icon.ico")
     except tk.TclError:
@@ -368,6 +385,12 @@ def open_settings():
     entry_lyric_path.pack(anchor="w", padx=10)
     tk.Button(scroll_frame, text="选择路径", command=lambda: entry_lyric_path.delete(0, tk.END) or entry_lyric_path.insert(0, filedialog.askdirectory(parent=win))).pack(anchor="w", padx=10)
 
+    def on_settings_close():
+        """Handle window close event for both save button and 'X' button."""
+        global settings_window
+        settings_window = None # Reset the tracker
+        win.destroy()
+
     def save_and_close():
         config["default_source"] = cb_source.get()
         config["default_search_type"] = cb_type.get()
@@ -378,13 +401,13 @@ def open_settings():
         save_config(config)
         combo_source.set(config["default_source"])
         combo_search_type.set(config["default_search_type"])
-        messagebox.showinfo("提示", "设置已保存并立即生效")
-        win.destroy()
+        messagebox.showinfo("提示", "设置已保存并立即生效", parent=win)
+        on_settings_close() # Use the custom close handler
 
     tk.Button(scroll_frame, text="保存设置", command=save_and_close).pack(pady=20)
 
     canvas.pack(side="left", fill="both", expand=True)
-    # scrollbar.pack(side="right", fill="y")
+    win.protocol("WM_DELETE_WINDOW", on_settings_close) # Bind 'X' button to the handler
 
 # ---------------- 点击跳转 & 封面 ----------------
 def on_item_click(event):
@@ -435,9 +458,42 @@ except tk.TclError:
 root.title("音乐搜索与下载")
 root.geometry("800x800")
 
-# -------------  顶部出处标签  -------------
+# ---- Global UI scaling ----
+def update_ui_scale(event):
+    """
+    Dynamically scale fonts and widget sizes based on window width.
+    This function scales ALL widgets except the Treeview list content.
+    """
+    global ui_font
+    if root.winfo_width() < 100:
+        return
+
+    scale_factor = root.winfo_width() / 800
+    # Apply max size limit
+    new_font_size = min(MAX_UI_FONT_SIZE, max(8, int(10 * scale_factor)))
+    ui_font = tkFont.Font(family="Helvetica", size=new_font_size)
+
+    # Update styles
+    style = ttk.Style()
+    style.configure("TButton", font=ui_font)
+    style.configure("TEntry", font=ui_font)
+    style.configure("TCombobox", font=ui_font)
+    style.configure("TLabel", font=ui_font)
+
+    # Manually update specific widgets
+    link.config(font=ui_font)
+
+# ---- Responsive sizing constants ----
+MIN_COVER_SIZE = 120
+MAX_COVER_SIZE = 280
+
+# MODIFICATION: Use grid layout for the entire window
+root.grid_columnconfigure(0, weight=1)
+root.grid_rowconfigure(2, weight=1) # Allow only the song list row to expand vertically
+
+# ------------- 顶部出处标签 -------------
 header_frame = tk.Frame(root)
-header_frame.pack(side="top", fill="x", pady=(5,0))
+header_frame.grid(row=0, column=0, sticky="ew", padx=10, pady=(5,0))
 
 link = tk.Label(header_frame,
                 text="GD音乐台 (music.gdstudio.xyz)",
@@ -450,93 +506,130 @@ link.bind("<Button-1>", open_url)
 
 # top frame contains search part and cover part
 top_frame = tk.Frame(root)
-top_frame.pack(side="top", fill="x", padx=10, pady=5)
+top_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=5)
+top_frame.grid_columnconfigure(0, weight=3)
+top_frame.grid_columnconfigure(1, weight=1)
+top_frame.grid_rowconfigure(0, weight=1)
 
 left_frame = tk.Frame(top_frame)
-left_frame.pack(side="left", fill="x", expand=True)
+left_frame.grid(row=0, column=0, sticky="nsew")
 
 right_frame = tk.Frame(top_frame)
-right_frame.pack(side="right", anchor="n", padx=(10, 0))
-
-# main frame contains the rest
-main_frame = tk.Frame(root)
-main_frame.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+right_frame.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
+right_frame.grid_rowconfigure(1, weight=1)
+right_frame.grid_columnconfigure(0, weight=1)
 
 # left frame
-tk.Label(left_frame, text="搜索关键词:").pack(anchor="w", padx=10, pady=5)
-entry_keyword = tk.Entry(left_frame, width=50)
-entry_keyword.pack(anchor="w", padx=10)
+left_frame.grid_columnconfigure(0, weight=0)
+left_frame.grid_columnconfigure(1, weight=1)
+ttk.Label(left_frame, text="搜索关键词:").grid(row=0, column=0, sticky="w", padx=10, pady=5)
+entry_keyword = ttk.Entry(left_frame)
+entry_keyword.grid(row=0, column=1, sticky="ew", padx=(0,10), pady=5)
 
-tk.Label(left_frame, text="音乐源:").pack(anchor="w", padx=10, pady=5)
+ttk.Label(left_frame, text="音乐源:").grid(row=1, column=0, sticky="w", padx=10, pady=5)
 combo_source = ttk.Combobox(left_frame, values=ALL_SOURCES, state="readonly")
 combo_source.set(config.get("default_source", "netease"))
-combo_source.pack(anchor="w", padx=10)
+combo_source.grid(row=1, column=1, sticky="ew", padx=(0,10), pady=5)
 
-tk.Label(left_frame, text="搜索类型:").pack(anchor="w", padx=10, pady=5)
+ttk.Label(left_frame, text="搜索类型:").grid(row=2, column=0, sticky="w", padx=10, pady=5)
 combo_search_type = ttk.Combobox(left_frame, values=["单曲/歌手搜索", "专辑搜索"], state="readonly")
 combo_search_type.set(config.get("default_search_type", "单曲/歌手搜索"))
-combo_search_type.pack(anchor="w", padx=10)
+combo_search_type.grid(row=2, column=1, sticky="ew", padx=(0,10), pady=5)
 
-tk.Button(left_frame, text="搜索", command=handle_new_search).pack(anchor="w", padx=10, pady=5)
+btn_search = ttk.Button(left_frame, text="搜索", command=handle_new_search)
+btn_search.grid(row=3, column=0, sticky="w", padx=10, pady=(5,10))
 
 # right frame
-tk.Label(right_frame, text="专辑封面").pack(pady=5)
+tk.Label(right_frame, text="专辑封面").grid(row=0, column=0, pady=5)
 album_label = tk.Label(right_frame)
-album_label.pack(padx=5, pady=5)
+album_label.grid(row=1, column=0, padx=5, pady=5, sticky="nsew")
 
-# main frame
+def resize_album_cover(event):
+    if hasattr(album_label, 'original_img'):
+        avail = max(0, min(event.width, event.height - 30))
+        if avail < MIN_COVER_SIZE:
+            album_label.config(image=None, text='封面隐藏')
+            album_label.image = None
+            return
+        size = min(MAX_COVER_SIZE, avail)
+        img = album_label.original_img.copy()
+        img.thumbnail((size, size), Image.Resampling.LANCZOS)
+        photo = ImageTk.PhotoImage(img)
+        album_label.config(image=photo, text='')
+        album_label.image = photo
+
+right_frame.bind('<Configure>', resize_album_cover)
+
+# MODIFICATION: song_list frame in grid
+song_list_frame = tk.Frame(root)
+song_list_frame.grid(row=2, column=0, sticky="nsew", padx=10, pady=(0, 10))
+
 columns = ("id", "歌名", "歌手", "专辑", "音乐源", "pic_id")
-song_list = ttk.Treeview(main_frame, columns=columns, show="headings", selectmode="extended")
+song_list = ttk.Treeview(song_list_frame, columns=columns, show="headings", selectmode="extended", height=15)
 for col in columns[:-1]:
     song_list.heading(col, text=col)
 song_list.column("pic_id", width=0, stretch=tk.NO)
-# song_list.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
 
-# calculate w of treeview when resizing widget
 def on_tree_resize(event):
     total_width = event.width - 20
     song_list.column("id", width=80, stretch=tk.NO, anchor='center')
     song_list.column("音乐源", width=100, stretch=tk.NO, anchor='center')
-    remaining_width = total_width -80 -100
+    remaining_width = total_width - 80 - 100
 
     if remaining_width > 0:
         song_list.column("歌名", width=int(remaining_width * 0.40), minwidth=120)
         song_list.column("歌手", width=int(remaining_width * 0.30), minwidth=100)
         song_list.column("专辑", width=int(remaining_width * 0.30), minwidth=120)
 
-song_list.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+song_list.pack(fill=tk.BOTH, expand=True)
 song_list.bind("<Configure>", on_tree_resize)
-
 song_list.bind("<Double-1>", on_item_click)
 
-frame_pages = tk.Frame(main_frame)
-frame_pages.pack(pady=5)
+# MODIFICATION: pagination frame in grid
+frame_pages = tk.Frame(root)
+frame_pages.grid(row=3, column=0, sticky="ew", pady=5)
+frame_pages.grid_columnconfigure(0, weight=1)
+frame_pages.grid_columnconfigure(1, weight=0)
+frame_pages.grid_columnconfigure(2, weight=0)
+frame_pages.grid_columnconfigure(3, weight=1)
 
 def handle_prev_page():
     if current_keyword:
         search_music(current_keyword, current_source, current_search_type, max(1, current_page - 1))
 
-tk.Button(frame_pages, text="上一页", command=handle_prev_page).pack(side=tk.LEFT, padx=5)
-
+ttk.Button(frame_pages, text="上一页", command=handle_prev_page).grid(row=0, column=1, padx=5)
 def handle_next_page():
     if current_keyword:
         search_music(current_keyword, current_source, current_search_type, current_page + 1)
-tk.Button(frame_pages, text="下一页", command=handle_next_page).pack(side=tk.LEFT, padx=5)
+ttk.Button(frame_pages, text="下一页", command=handle_next_page).grid(row=0, column=2, padx=5)
 
-tk.Button(main_frame, text="下载选中歌曲", command=download_selected).pack(pady=5)
-tk.Button(main_frame, text="设置", command=open_settings).pack(pady=5)
+# MODIFICATION: button container frame in grid
+button_container_frame = tk.Frame(root)
+button_container_frame.grid(row=4, column=0, sticky="ew", pady=10)
+button_container_frame.grid_columnconfigure(0, weight=1)
+button_container_frame.grid_columnconfigure(1, weight=1)
+button_container_frame.grid_columnconfigure(2, weight=1)
 
-tk.Label(main_frame, text="下载进度条：").pack(side="left")
+btn_download = ttk.Button(button_container_frame, text="下载选中歌曲", command=download_selected)
+btn_download.grid(row=0, column=1, pady=(0, 5), sticky="ew")
+
+btn_settings = ttk.Button(button_container_frame, text="设置", command=open_settings)
+btn_settings.grid(row=1, column=1, sticky="ew")
+
+# MODIFICATION: status frame in grid
+status_frame = tk.Frame(root)
+status_frame.grid(row=5, column=0, sticky="ew")
+tk.Label(status_frame, text="下载进度：").grid(row=0, column=0, padx=10, pady=6, sticky="w")
 progress_var = tk.IntVar()
-progress_bar = ttk.Progressbar(main_frame, variable=progress_var, maximum=100)
-progress_bar.pack(side="left", fill=tk.X, expand=True)
+progress_bar = ttk.Progressbar(status_frame, variable=progress_var, maximum=100)
+progress_bar.grid(row=0, column=1, padx=(0,10), pady=6, sticky="ew")
+status_frame.grid_columnconfigure(1, weight=1)
 
 # -------------  新增：Ctrl+A 全选 & 鼠标拖动框选 -------------
-# -------------  新增：Ctrl + A 全选 & 鼠标拖动框选 -------------
 def tree_select_all(event):
     """Ctrl+A 全选"""
     song_list.selection_add(song_list.get_children())
-    return "break"          # 防止系统默认再响一次
+    return "break"
 
 def _get_row_at_y(y):
     """根据 y 坐标返回对应的 iid，若空返回 None"""
@@ -554,7 +647,6 @@ def tree_update_select(event):
     cur_item = _get_row_at_y(event.y)
     if cur_item is None:
         return
-    # 计算从起始行到当前行的区间
     all_items = song_list.get_children()
     try:
         from_idx = all_items.index(song_list._rb_start_item)
@@ -562,7 +654,6 @@ def tree_update_select(event):
     except ValueError:
         return
     first, last = min(from_idx, to_idx), max(from_idx, to_idx)
-    # 清除旧选，重选新区间
     song_list.selection_remove(*song_list.selection())
     song_list.selection_add(*all_items[first:last+1])
 
@@ -573,6 +664,8 @@ def tree_end_select(event):
 
 # 绑定
 root.bind_all("<Control-a>", tree_select_all, add='+')
+root.bind("<Return>", lambda event: handle_new_search())
+root.bind("<Configure>", update_ui_scale) # Bind global scaling function
 song_list.bind("<Button-1>", tree_start_select, add='+')
 song_list.bind("<B1-Motion>", tree_update_select, add='+')
 song_list.bind("<ButtonRelease-1>", tree_end_select, add='+')
