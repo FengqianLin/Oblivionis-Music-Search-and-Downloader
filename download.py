@@ -1,8 +1,53 @@
-from configure import *
+import re
+from collections import defaultdict
 from mutagen.easyid3 import EasyID3  # For MP3 simple tags
 from mutagen.id3 import ID3, APIC, USLT  # For MP3 advanced (artwork, lyrics)
 from mutagen.flac import FLAC, Picture  # For FLAC
 from mutagen import MutagenError
+
+from configure import *
+
+
+def merge_lyrics(original_lrc, translated_lrc):
+    """
+    Merge original and translated lyrics
+    """
+    lyric_dict = defaultdict(list)
+
+    # Capture timestamp and text. Handles both [mm:ss.xx] and [mm:ss:xx]
+    lrc_line_regex = re.compile(r'(\[\d{2}:\d{2}[.:]\d{2,3}\])(.*)')
+
+    # Process original lyrics
+    for line in original_lrc.splitlines():
+        match = lrc_line_regex.match(line)
+        if match:
+            timestamp, text = match.groups()
+            lyric_dict[timestamp].append(text.strip())
+
+    # Process translated lyrics
+    for line in translated_lrc.splitlines():
+        match = lrc_line_regex.match(line)
+        if match:
+            timestamp, text = match.groups()
+
+            if timestamp in lyric_dict:
+                lyric_dict[timestamp].append(text.strip())
+            else:
+                lyric_dict[timestamp].insert(0, "")
+                lyric_dict[timestamp].append(text.strip())
+
+    # rebuild LRC
+    merged_lines = []
+    for timestamp, texts in sorted(lyric_dict.items()):
+        if len(texts) == 1:
+            # only one LRC
+            merged_lines.append(f"{timestamp}{texts[0]}")
+        elif len(texts) > 1:
+            # bilingual LRC
+            merged_lines.append(f"{timestamp}{texts[0]}")
+            merged_lines.append(f"{timestamp}{texts[1]}")
+
+    return "\n".join(merged_lines)
 
 def download_worker(song_id, song_name, artist, album, source, pic_id, bitrate, save_dir_music, save_dir_lyric, semaphore):
     """
@@ -40,10 +85,22 @@ def download_worker(song_id, song_name, artist, album, source, pic_id, bitrate, 
         if save_dir_lyric:
             lyric_params = {"types": "lyric", "source": source, "id": song_id}
             lyric_data = session.get(BASE_URL, params=lyric_params, timeout=15).json()
-            if "lyric" in lyric_data and lyric_data["lyric"]:
+
+            original_lyric = lyric_data.get("lyric")
+            translated_lyric = lyric_data.get("tlyric")
+            final_lyric_content = ""
+
+            if original_lyric and translated_lyric:
+                final_lyric_content = merge_lyrics(original_lyric, translated_lyric)
+            elif original_lyric:
+                final_lyric_content = original_lyric
+            elif translated_lyric:
+                final_lyric_content = translated_lyric
+
+            if final_lyric_content:
                 lyric_file = os.path.join(save_dir_lyric, sanitize_filename(f"{song_name}.lrc"))
                 with open(lyric_file, "w", encoding="utf-8") as f:
-                    f.write(lyric_data["lyric"])
+                    f.write(final_lyric_content)
 
         # download album cover if pic_id exists
         cover_data = None
