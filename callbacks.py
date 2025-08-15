@@ -82,7 +82,8 @@ class AppCallbacks:
         self.ui.song_list.insert("", tk.END, values=("", "正在搜索，请稍候...", "", "", "", ""))
         self.root.update_idletasks()
 
-        api_source = f"{source}_album" if search_type == "专辑搜索" else source
+        api_source = f"{source}_album" if search_type == "专辑搜索" else \
+                        (f"{source}_playlist" if search_type == "网易云歌单搜索" else source)
         self.current_keyword = keyword
         self.current_source = source
         self.current_search_type = search_type

@@ -50,7 +50,7 @@ class MainUI:
         self.combo_source.grid(row=1, column=1, sticky="ew", padx=(0, 10), pady=5)
 
         ttk.Label(left_frame, text="搜索类型:").grid(row=2, column=0, sticky="w", padx=10, pady=5)
-        self.combo_search_type = ttk.Combobox(left_frame, values=["单曲/歌手搜索", "专辑搜索"], state="readonly")
+        self.combo_search_type = ttk.Combobox(left_frame, values=["单曲/歌手搜索", "专辑搜索", "网易云歌单搜索"], state="readonly")
         self.combo_search_type.grid(row=2, column=1, sticky="ew", padx=(0, 10), pady=5)
 
         self.btn_search = ttk.Button(left_frame, text="搜索")
@@ -68,13 +68,18 @@ class MainUI:
         # treeview song_list
         song_list_frame = tk.Frame(self.root)
         song_list_frame.grid(row=2, column=0, sticky="nsew", padx=10, pady=(0, 10))
+
+        treeScrollbar = ttk.Scrollbar(song_list_frame, orient=tk.VERTICAL)
         columns = ("id", "歌名", "歌手", "专辑", "音乐源", "pic_id")
         self.song_list = ttk.Treeview(song_list_frame, columns=columns, show="headings", selectmode="extended",
-                                      height=15)
+                                      height=15, yscrollcommand=treeScrollbar.set)
+        treeScrollbar.config(command=self.song_list.yview)
         for col in columns[:-1]:
             self.song_list.heading(col, text=col)
         self.song_list.column("pic_id", width=0, stretch=tk.NO)
-        self.song_list.pack(fill=tk.BOTH, expand=True)
+
+        treeScrollbar.pack(side=tk.RIGHT, fill="y")
+        self.song_list.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         frame_pages = tk.Frame(self.root)
         frame_pages.grid(row=3, column=0, sticky="ew", pady=5)
