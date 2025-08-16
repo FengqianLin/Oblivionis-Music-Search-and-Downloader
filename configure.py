@@ -50,7 +50,7 @@ DEFAULT_CONFIG = {
     "default_search_count": 20,
     "lyric_mode": "同时内嵌歌词并下载.lrc歌词文件",
     "max_downloads": 3,
-    "record number": False,
+    "record_number": False,
     "default_music_path": "每次询问",
     "default_lyric_path": "每次询问",
     "album_cover_size": 500
@@ -74,4 +74,5 @@ def save_config(cfg):
         json.dump(cfg, f, indent=4, ensure_ascii=False)
 
 def sanitize_filename(name):
+
     return "".join(c for c in name if c not in r'\/:*?"<>|').strip()
