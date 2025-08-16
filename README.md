@@ -2,6 +2,14 @@
 
 **Oblivionis** is a Python-based desktop application designed for searching and downloading music from various online music platforms via the GD Studio Music API. It provides a user-friendly graphical interface to search for songs, albums, or artists, display album covers, and download music files and lyrics. The application supports multiple music sources and allows users to customize settings such as default music source, bitrate, and save paths.
 
+## Disclaimer
+
+This software is developed solely for integrating the API provided by GD Studio's Online Music Platform (music.gdstudio.xyz). The author of this software has no ownership or control over the music resources accessed through the API. All copyright-related responsibilities, including but not limited to the legality of music content, reside with GD Studio, the API provider. For any unlawful activity or copyright infringement concerns, please contact GD Studio at gdstudio@email.com.
+
+The use of this software for any form of profit-making activity is strictly prohibited. Furthermore, the distribution of music resources obtained through this software is not permitted under any circumstances. Users are required to comply with the terms and conditions set forth by GD Studio, including the attribution of "GD音乐台 (music.gdstudio.xyz)" when utilizing the API.
+
+By using this software, users acknowledge and agree to assume full legal responsibility for their actions in accordance with applicable laws, particularly those in mainland China. The author of this software shall not be held liable for any legal consequences arising from misuse or unauthorized activities.
+
 ## Features
 
 - **Multi-Source Support**: Choose from a variety of music sources, with stable options like NetEase, Kuwo, and Joox (as of July 2025).
