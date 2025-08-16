@@ -359,7 +359,7 @@ class AppCallbacks:
 
         # 默认搜索类型
         tk.Label(main_frame, text="默认搜索类型:", font=ui_font).pack(anchor="w", padx=10, pady=5)
-        cb_type = ttk.Combobox(main_frame, values=["单曲/歌手搜索", "专辑搜索"], state="readonly", font=ui_font)
+        cb_type = ttk.Combobox(main_frame, values=["单曲/歌手搜索", "专辑搜索", "网易云歌单搜索"], state="readonly", font=ui_font)
         cb_type.set(self.config.get("default_search_type", "单曲/歌手搜索"))
         cb_type.pack(fill="x", padx=10)
 
@@ -476,7 +476,7 @@ class AppCallbacks:
         elif col == "#3":
             target_keyword, search_type = artist_name, "单曲/歌手搜索"
         elif col == "#4":
-            target_keyword, search_type = album_name, "专辑搜索"
+            target_keyword, search_type = (album_name + " - " + artist_name), "专辑搜索"
 
         if target_keyword:
             self.ui.entry_keyword.delete(0, tk.END)
