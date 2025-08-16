@@ -4,6 +4,7 @@ from PIL import Image, ImageTk
 from io import BytesIO
 import webbrowser
 import threading
+import time
 
 from download import *
 from search import *
@@ -24,7 +25,8 @@ class AppCallbacks:
 
         self.ui.combo_source.set(self.config.get("default_source", "netease"))
         self.ui.combo_search_type.set(self.config.get("default_search_type", "单曲/歌手搜索"))
-        self.download_semaphore = threading.Semaphore(self.config.get("max_concurrent_downloads", 3))
+        self.download_semaphore = threading.Semaphore(self.config.get("max_downloads", 3))
+        self.start_download_dispatcher()
 
     def bind_callbacks(self):
         self.ui.link.bind("<Button-1>", self.open_url)
@@ -70,6 +72,32 @@ class AppCallbacks:
     # endregion
 
     # region threading
+    def start_download_dispatcher(self):
+        dispatcher_thread = threading.Thread(target=self.download_dispatcher, daemon=True)
+        dispatcher_thread.start()
+
+    def download_dispatcher(self):
+        """
+        Pulls download tasks from a queue, starts a worker thread for each,
+        and waits for 5.1s before processing the next task.
+        Important: test if this blocks other thread!!!!!
+        """
+        while True:
+            if not task_queue.empty():
+                task_args = task_queue.get()
+                print(task_args)
+
+                thread = threading.Thread(
+                    target=download_worker,
+                    args=task_args,
+                    daemon=True
+                )
+                thread.start()
+
+                time.sleep(DOWNLOAD_INTERVAL)
+            else:
+                time.sleep(1)
+
     def handle_new_search(self):
         keyword = self.ui.entry_keyword.get().strip()
         if not keyword:
@@ -156,6 +184,7 @@ class AppCallbacks:
                 if download_tasks_completed >= download_tasks_total:
                     if all_downloads_succeeded:
                         messagebox.showinfo("下载完成", "所有选中歌曲下载成功！")
+                        download_tasks_total = 0
                     else:
                         success_count = download_tasks_total - len(self.download_errors)
                         error_summary = f"下载完成。成功 {success_count} 个, 失败 {len(self.download_errors)} 个。\n\n失败详情:\n"
@@ -168,6 +197,8 @@ class AppCallbacks:
                             self.retry_downloads()
                         else:
                             self.failed_args.clear()
+                            download_tasks_total = 0
+
         except queue.Empty:
             pass
 
@@ -213,12 +244,18 @@ class AppCallbacks:
                         return
 
         # start downloading
-        self.ui.progress_var.set(0)
-        download_tasks_total = len(items)
-        download_tasks_completed = 0
-        all_downloads_succeeded = True
-        self.download_errors = []
-        self.failed_args = []
+        if download_tasks_completed >= download_tasks_total:
+            # This is a new session, so reset all state variables.
+            self.ui.progress_var.set(0)
+            download_tasks_total = 0
+            download_tasks_completed = 0
+            all_downloads_succeeded = True
+            self.download_errors.clear()
+            self.failed_args.clear()
+
+        # Add the number of newly selected items to the total task count.
+        download_tasks_total += len(items)
+
         bitrate = self.config.get("default_bitrate", "320")
         cover_size = self.config.get("album_cover_size", 500)
         lyric_mode = self.config.get("lyric_mode", "同时内嵌歌词并下载.lrc歌词文件")
@@ -238,12 +275,8 @@ class AppCallbacks:
                     thread_str += "!"
                 elif record_type == "在元数据和文件名中编号":
                     thread_str += "+"
-            thread = threading.Thread(
-                target=download_worker,
-                args=(thread_str, song_id, song_name, artist, album, source, pic_id, bitrate, cover_size, lyric_mode, save_dir_music, save_dir_lyric, self.download_semaphore),
-                daemon=True
-            )
-            thread.start()
+            args=(thread_str, song_id, song_name, artist, album, source, pic_id, bitrate, cover_size, lyric_mode, save_dir_music, save_dir_lyric, self.download_semaphore),
+            task_queue.put(args[0])
 
     def retry_downloads(self):
         global download_tasks_total, download_tasks_completed, all_downloads_succeeded
@@ -264,12 +297,7 @@ class AppCallbacks:
 
         # Start new threads for the failed downloads
         for retry_args in args_to_retry:
-            thread = threading.Thread(
-                target=download_worker,
-                args=retry_args,
-                daemon=True
-            )
-            thread.start()
+            task_queue.put(retry_args)
     # endregion
 
     def open_settings(self):

@@ -1,4 +1,5 @@
 import re
+from urllib.parse import urlparse
 from collections import defaultdict
 from mutagen.easyid3 import EasyID3  # For MP3 simple tags
 from mutagen.id3 import ID3, APIC, USLT  # For MP3 advanced (artwork, lyrics)
@@ -6,7 +7,6 @@ from mutagen.flac import FLAC, Picture  # For FLAC
 from mutagen import MutagenError
 
 from configure import *
-
 
 def merge_lyrics(original_lrc, translated_lrc):
     """
@@ -71,10 +71,18 @@ def download_worker(thread_str, song_id, song_name, artist, album, source, pic_i
             return
 
         # download music
-        br = music_data.get("br", 0)
-        ext = ".flac" if isinstance(br, (int, float)) and br >= 740 else ".mp3"
+        try:
+            parsed_url = urlparse(music_url)
+            _, ext = os.path.splitext(parsed_url.path)
+            ext = ext.lower()
+
+            if ext not in ['.mp3', '.flac']:
+                ext = '.mp3'
+        except Exception:
+            ext = '.mp3'
+
         if thread_str and (thread_str[-1] == "!" or thread_str[-1] == "+"):
-                music_file = os.path.join(save_dir_music, sanitize_filename(f"{thread_str[:-1]}.{song_name}{ext}"))
+            music_file = os.path.join(save_dir_music, sanitize_filename(f"{thread_str[:-1]}.{song_name}{ext}"))
         else:
             music_file = os.path.join(save_dir_music, sanitize_filename(f"{song_name}{ext}"))
 

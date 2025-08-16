@@ -23,11 +23,13 @@ ALL_SOURCES = [
     "deezer", "migu", "kugou", "kuwo", "ximalaya", "apple"
 ]
 BITRATES = ["128", "192", "320", "740", "999"]
+DOWNLOAD_INTERVAL = 5.1
 
 # 线程/队列
 search_queue = queue.Queue()
 pic_queue    = queue.Queue()
 download_queue = queue.Queue()
+task_queue = queue.Queue()
 
 search_id_counter = 0
 download_tasks_total = 0
