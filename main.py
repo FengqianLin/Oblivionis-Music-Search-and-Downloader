@@ -38,6 +38,5 @@ def main():
     callbacks.process_queue()
     root.mainloop()
 
-
 if __name__ == "__main__":
     main()

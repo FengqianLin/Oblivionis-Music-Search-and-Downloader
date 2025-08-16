@@ -50,7 +50,7 @@ def merge_lyrics(original_lrc, translated_lrc):
     return "\n".join(merged_lines)
 
 
-def download_worker(song_id, song_name, artist, album, source, pic_id, bitrate, save_dir_music, save_dir_lyric, semaphore, config):
+def download_worker(thread_str, song_id, song_name, artist, album, source, pic_id, bitrate, cover_size, lyric_mode, save_dir_music, save_dir_lyric, semaphore, config):
     """
     download thread
     """
@@ -73,7 +73,10 @@ def download_worker(song_id, song_name, artist, album, source, pic_id, bitrate, 
         # download music
         br = music_data.get("br", 0)
         ext = ".flac" if isinstance(br, (int, float)) and br >= 740 else ".mp3"
-        music_file = os.path.join(save_dir_music, sanitize_filename(f"{song_name}{ext}"))
+        if thread_str:
+            music_file = os.path.join(save_dir_music, sanitize_filename(f"{thread_str}.{song_name}{ext}"))
+        else:
+            music_file = os.path.join(save_dir_music, sanitize_filename(f"{song_name}{ext}"))
 
         with session.get(music_url, stream=True, timeout=30) as r:
             r.raise_for_status()
@@ -82,7 +85,6 @@ def download_worker(song_id, song_name, artist, album, source, pic_id, bitrate, 
                     f.write(chunk)
 
         # lyric handling
-        lyric_mode = config.get("lyric_mode", "同时内嵌歌词并下载.lrc歌词文件")
         final_lyric_content = ""
 
         if lyric_mode != "不下载歌词":
@@ -106,7 +108,6 @@ def download_worker(song_id, song_name, artist, album, source, pic_id, bitrate, 
                     f.write(final_lyric_content)
 
         # download album cover with custom size
-        cover_size = config.get("album_cover_size", 500)
         cover_data = None
         if pic_id:
             pic_params = {"types": "pic", "source": source, "id": pic_id, "size": cover_size}

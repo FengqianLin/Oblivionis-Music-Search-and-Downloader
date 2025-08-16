@@ -74,5 +74,4 @@ def save_config(cfg):
         json.dump(cfg, f, indent=4, ensure_ascii=False)
 
 def sanitize_filename(name):
-
     return "".join(c for c in name if c not in r'\/:*?"<>|').strip()

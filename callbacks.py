@@ -156,12 +156,21 @@ class AppCallbacks:
         all_downloads_succeeded = True
         self.download_errors = []
         bitrate = self.config.get("default_bitrate", "320")
+        cover_size = self.config.get("album_cover_size", 500)
+        lyric_mode = self.config.get("lyric_mode", "同时内嵌歌词并下载.lrc歌词文件")
+        record_number = self.config.get("record_number", False)
 
+        id_len = len(str(abs(len(items))))
+        thread_id = 0
         for item in items:
             song_id, song_name, artist, album, source, pic_id = self.ui.song_list.item(item, "values")
+            thread_str = None
+            if record_number:
+                thread_id += 1
+                thread_str = str(thread_id).zfill(id_len)
             thread = threading.Thread(
                 target=download_worker,
-                args=(song_id, song_name, artist, album, source, pic_id, bitrate, save_dir_music, save_dir_lyric, self.download_semaphore, self.config),
+                args=(thread_str, song_id, song_name, artist, album, source, pic_id, bitrate, cover_size, lyric_mode, save_dir_music, save_dir_lyric, self.download_semaphore, self.config),
                 daemon=True
             )
             thread.start()
@@ -227,45 +236,52 @@ class AppCallbacks:
         win = tk.Toplevel(self.root)
         self.settings_window = win
         win.title("设置")
-        win.geometry("400x750")  # 将窗口固定尺寸加大，以容纳所有设置
-        win.resizable(False, False) # 防止用户手动缩小窗口
+        win.geometry("400x600")  # 将窗口固定尺寸加大，以容纳所有设置
+        win.resizable(False, True)
+        win.minsize(400, 400)
 
         try:
             win.iconbitmap("assets/icon.ico")
         except tk.TclError:
             pass
 
-        main_frame = ttk.Frame(win, padding=10)
-        main_frame.pack(fill="both", expand=True)
+        canvas = tk.Canvas(win)
+        scrollbar = ttk.Scrollbar(win, orient="vertical", command=canvas.yview)
+        main_frame = tk.Frame(canvas)
+        main_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.create_window((0, 0), window=main_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        scrollbar.pack(side="right", fill="y")
+        canvas.pack(side="left", fill="both", expand=True)
         
         ui_font = self.ui.ui_font
 
         # 默认音乐源
-        tk.Label(main_frame, text="默认音乐源:", font=ui_font).pack(anchor="w", pady=(5, 0))
+        tk.Label(main_frame, text="默认音乐源:", font=ui_font).pack(anchor="w", padx=10, pady=5)
         cb_source = ttk.Combobox(main_frame, values=ALL_SOURCES, state="readonly", font=ui_font)
         cb_source.set(self.config.get("default_source", "netease"))
-        cb_source.pack(fill="x")
+        cb_source.pack(fill="x", padx=10)
 
         # 默认搜索类型
-        tk.Label(main_frame, text="默认搜索类型:", font=ui_font).pack(anchor="w", pady=(5, 0))
+        tk.Label(main_frame, text="默认搜索类型:", font=ui_font).pack(anchor="w", padx=10, pady=5)
         cb_type = ttk.Combobox(main_frame, values=["单曲/歌手搜索", "专辑搜索"], state="readonly", font=ui_font)
         cb_type.set(self.config.get("default_search_type", "单曲/歌手搜索"))
-        cb_type.pack(fill="x")
+        cb_type.pack(fill="x", padx=10)
 
         # 默认音质
-        tk.Label(main_frame, text="默认音质:", font=ui_font).pack(anchor="w", pady=(5, 0))
+        tk.Label(main_frame, text="默认音质:", font=ui_font).pack(anchor="w", padx=10, pady=5)
         cb_bitrate = ttk.Combobox(main_frame, values=BITRATES, state="readonly", font=ui_font)
         cb_bitrate.set(self.config.get("default_bitrate", "320"))
-        cb_bitrate.pack(fill="x")
+        cb_bitrate.pack(fill="x", padx=10)
 
         # 每页显示结果
-        tk.Label(main_frame, text="每页显示结果:", font=ui_font).pack(anchor="w", pady=(5, 0))
+        tk.Label(main_frame, text="每页显示结果:", font=ui_font).pack(anchor="w", padx=10, pady=5)
         cb_count = ttk.Combobox(main_frame, values=["10", "20", "30", "40", "50"], state="readonly", font=ui_font)
         cb_count.set(str(self.config.get("default_search_count", 20)))
-        cb_count.pack(fill="x")
+        cb_count.pack(fill="x", padx=10)
 
         # 歌词处理方式
-        tk.Label(main_frame, text="歌词处理方式:", font=ui_font).pack(anchor="w", pady=(5, 0))
+        tk.Label(main_frame, text="歌词处理方式:", font=ui_font).pack(anchor="w", padx=10, pady=5)
         cb_lyric_mode = ttk.Combobox(
             main_frame,
             values=["不下载歌词", "只内嵌歌词", "只下载.lrc歌词文件", "同时内嵌歌词并下载.lrc歌词文件"],
@@ -273,41 +289,47 @@ class AppCallbacks:
             font=ui_font
         )
         cb_lyric_mode.set(self.config.get("lyric_mode", "同时内嵌歌词并下载.lrc歌词文件"))
-        cb_lyric_mode.pack(fill="x")
+        cb_lyric_mode.pack(fill="x", padx=10)
 
         # 同时下载任务数
-        tk.Label(main_frame, text="同时下载任务数:", font=ui_font).pack(anchor="w", pady=(5, 0))
+        tk.Label(main_frame, text="同时下载任务数:", font=ui_font).pack(anchor="w", padx=10, pady=5)
         cb_concurrency = ttk.Combobox(main_frame, values=["1", "2", "3", "4", "5", "6", "7", "8"], state="readonly", font=ui_font)
-        cb_concurrency.set(str(self.config.get("max_downloads", 5)))
-        cb_concurrency.pack(fill="x")
+        cb_concurrency.set(str(self.config.get("max_downloads", 3)))
+        cb_concurrency.pack(fill="x", padx=10)
+
+        # 是否为单次下载编号
+        record_number_var = tk.BooleanVar()
+        record_number_var.set(self.config.get("record_number", False))
+        chk_record_number = tk.Checkbutton(main_frame, text="为单次下载编号", variable=record_number_var, font=ui_font)
+        chk_record_number.pack(anchor="w", padx=10, pady=(10, 0))
 
         # 默认歌曲保存路径
-        tk.Label(main_frame, text="默认歌曲保存路径:", font=ui_font).pack(anchor="w", pady=(5, 0))
+        tk.Label(main_frame, text="默认歌曲保存路径:", font=ui_font).pack(anchor="w", padx=10, pady=5)
         entry_music_path = tk.Entry(main_frame, width=40, font=ui_font)
         entry_music_path.insert(0, self.config.get("default_music_path", "每次询问"))
-        entry_music_path.pack(fill="x")
+        entry_music_path.pack(fill="x", padx=10)
         tk.Button(main_frame, text="选择路径", font=ui_font, command=lambda: (entry_music_path.delete(0, tk.END),
                                                                                 entry_music_path.insert(0,
                                                                                                         filedialog.askdirectory(
                                                                                                             parent=win) or "每次询问"))).pack(
-            anchor="w", pady=(2, 5))
+            anchor="w", padx=10, pady=(2, 5))
 
         # 默认歌词保存路径
-        tk.Label(main_frame, text="默认歌词保存路径:", font=ui_font).pack(anchor="w", pady=(5, 0))
+        tk.Label(main_frame, text="默认歌词保存路径:", font=ui_font).pack(anchor="w", padx=10, pady=5)
         entry_lyric_path = tk.Entry(main_frame, width=40, font=ui_font)
         entry_lyric_path.insert(0, self.config.get("default_lyric_path", "每次询问"))
-        entry_lyric_path.pack(fill="x")
+        entry_lyric_path.pack(fill="x", padx=10)
         tk.Button(main_frame, text="选择路径", font=ui_font, command=lambda: (entry_lyric_path.delete(0, tk.END),
                                                                                 entry_lyric_path.insert(0,
                                                                                                         filedialog.askdirectory(
                                                                                                             parent=win) or "每次询问"))).pack(
-            anchor="w", pady=(2, 5))
+            anchor="w", padx=10, pady=(2, 5))
 
         # 专辑封面尺寸
-        tk.Label(main_frame, text="专辑封面尺寸:", font=ui_font).pack(anchor="w", pady=(5, 0))
-        cb_cover_size = ttk.Combobox(main_frame, values=["300", "500", "800", "1000"], state="readonly", font=ui_font)
+        tk.Label(main_frame, text="专辑封面尺寸:", font=ui_font).pack(anchor="w", padx=10, pady=5)
+        cb_cover_size = ttk.Combobox(main_frame, values=["300", "500"], state="readonly", font=ui_font)
         cb_cover_size.set(str(self.config.get("album_cover_size", 500)))
-        cb_cover_size.pack(fill="x")
+        cb_cover_size.pack(fill="x", padx=10)
 
         def on_settings_close():
             self.settings_window = None
@@ -320,6 +342,7 @@ class AppCallbacks:
             self.config["default_search_count"] = int(cb_count.get())
             self.config["lyric_mode"] = cb_lyric_mode.get()
             self.config["max_downloads"] = int(cb_concurrency.get())
+            self.config["record_number"] = record_number_var.get()
             self.config["default_music_path"] = entry_music_path.get().strip() or "每次询问"
             self.config["default_lyric_path"] = entry_lyric_path.get().strip() or "每次询问"
             self.config["album_cover_size"] = int(cb_cover_size.get())
@@ -335,6 +358,7 @@ class AppCallbacks:
 
         tk.Button(main_frame, text="保存设置", font=ui_font, command=save_and_close).pack(pady=20)
         win.protocol("WM_DELETE_WINDOW", on_settings_close)
+
     # region treeview item click
     def open_url(self, event):
         webbrowser.open("https://music.gdstudio.xyz")
