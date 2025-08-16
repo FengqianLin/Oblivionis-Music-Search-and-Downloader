@@ -103,7 +103,10 @@ def download_worker(thread_str, song_id, song_name, artist, album, source, pic_i
 
             # 保存 .lrc 文件（模式 3 & 4）
             if final_lyric_content and lyric_mode in ["只下载.lrc歌词文件", "同时内嵌歌词并下载.lrc歌词文件"] and save_dir_lyric:
-                lyric_file = os.path.join(save_dir_lyric, sanitize_filename(f"{song_name}.lrc"))
+                if thread_str:
+                    lyric_file = os.path.join(save_dir_lyric, sanitize_filename(f"{thread_str}.{song_name}.lrc"))
+                else:
+                    lyric_file = os.path.join(save_dir_lyric, sanitize_filename(f"{song_name}.lrc"))
                 with open(lyric_file, "w", encoding="utf-8") as f:
                     f.write(final_lyric_content)
 
@@ -125,7 +128,8 @@ def download_worker(thread_str, song_id, song_name, artist, album, source, pic_i
             audio['title'] = song_name
             audio['artist'] = artist if isinstance(artist, str) else ' / '.join(artist)  # Handle list or string
             audio['album'] = album
-            audio.save()
+            if thread_str:
+                audio['tracknumber'] = thread_str
 
             # Advanced: Embed artwork and lyrics using full ID3
             audio = ID3(music_file)
@@ -138,8 +142,9 @@ def download_worker(thread_str, song_id, song_name, artist, album, source, pic_i
                     data=cover_data
                 ))
             if final_lyric_content and lyric_mode in ["只内嵌歌词", "同时内嵌歌词并下载.lrc歌词文件"]:
-                plain_lyrics = '\n'.join(line.split(']', 1)[-1].strip() for line in final_lyric_content.splitlines() if ']' in line)
-                audio.add(USLT(encoding=3, lang='eng', desc='Lyrics', text=plain_lyrics))
+                # plain_lyrics = '\n'.join(line.split(']', 1)[-1].strip() for line in final_lyric_content.splitlines() if ']' in line)
+                # audio.add(USLT(encoding=3, lang='eng', desc='Lyrics', text=plain_lyrics))
+                audio.add(USLT(encoding=3, desc='Lyrics', text=final_lyric_content))
             audio.save()
 
         elif ext == ".flac":
@@ -147,6 +152,8 @@ def download_worker(thread_str, song_id, song_name, artist, album, source, pic_i
             audio['title'] = song_name
             audio['artist'] = artist if isinstance(artist, str) else ' / '.join(artist)
             audio['album'] = album
+            if thread_str:
+                audio['tracknumber'] = thread_str
 
             if cover_data:
                 picture = Picture()
@@ -159,8 +166,9 @@ def download_worker(thread_str, song_id, song_name, artist, album, source, pic_i
                 audio.add_picture(picture)
 
             if final_lyric_content and lyric_mode in ["只内嵌歌词", "同时内嵌歌词并下载.lrc歌词文件"]:
-                plain_lyrics = '\n'.join(line.split(']', 1)[-1].strip() for line in final_lyric_content.splitlines() if ']' in line)
-                audio['lyrics'] = plain_lyrics
+                # plain_lyrics = '\n'.join(line.split(']', 1)[-1].strip() for line in final_lyric_content.splitlines() if ']' in line)
+                # audio['lyrics'] = plain_lyrics
+                audio['lyrics'] = final_lyric_content
 
             audio.save()
 
@@ -168,16 +176,28 @@ def download_worker(thread_str, song_id, song_name, artist, album, source, pic_i
 
     except requests.exceptions.Timeout:
         all_downloads_succeeded = False
-        download_queue.put(("error", f"'{song_name}' \n下载时连接超时"))
+        retry_args = (thread_str, song_id, song_name, artist, album, source, pic_id, bitrate, cover_size, lyric_mode,
+                      save_dir_music, save_dir_lyric, semaphore, config)
+
+        download_queue.put(("error", (f"'{song_name}' \n下载时连接超时", retry_args)))
     except requests.exceptions.RequestException as e:
         all_downloads_succeeded = False
-        download_queue.put(("error", f"'{song_name}' \n下载时发生网络错误: {e}"))
+        retry_args = (thread_str, song_id, song_name, artist, album, source, pic_id, bitrate, cover_size, lyric_mode,
+                      save_dir_music, save_dir_lyric, semaphore, config)
+
+        download_queue.put(("error", (f"'{song_name}' \n下载时发生网络错误: {e}", retry_args)))
     except MutagenError as e:
         all_downloads_succeeded = False
-        download_queue.put(("error", f"'{song_name}' \n元数据写入失败: {e}"))
+        retry_args = (thread_str, song_id, song_name, artist, album, source, pic_id, bitrate, cover_size, lyric_mode,
+                      save_dir_music, save_dir_lyric, semaphore, config)
+
+        download_queue.put(("error", (f"'{song_name}' \n元数据写入失败: {e}", retry_args)))
     except Exception as e:
         all_downloads_succeeded = False
-        download_queue.put(("error", f"'{song_name}' \n下载时发生未知错误: {e}"))
+        retry_args = (thread_str, song_id, song_name, artist, album, source, pic_id, bitrate, cover_size, lyric_mode,
+                      save_dir_music, save_dir_lyric, semaphore, config)
+
+        download_queue.put(("error", (f"'{song_name}' \n下载时发生未知错误: {e}", retry_args)))
 
     finally:
         semaphore.release()

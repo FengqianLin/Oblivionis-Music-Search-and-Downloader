@@ -15,6 +15,7 @@ class AppCallbacks:
         self.config = load_config()
         self.settings_window = None
         self.download_errors = []
+        self.failed_args = []
 
         self.current_keyword = ""
         self.current_source = ""
@@ -155,6 +156,7 @@ class AppCallbacks:
         download_tasks_completed = 0
         all_downloads_succeeded = True
         self.download_errors = []
+        self.failed_args = []
         bitrate = self.config.get("default_bitrate", "320")
         cover_size = self.config.get("album_cover_size", 500)
         lyric_mode = self.config.get("lyric_mode", "同时内嵌歌词并下载.lrc歌词文件")
@@ -171,6 +173,32 @@ class AppCallbacks:
             thread = threading.Thread(
                 target=download_worker,
                 args=(thread_str, song_id, song_name, artist, album, source, pic_id, bitrate, cover_size, lyric_mode, save_dir_music, save_dir_lyric, self.download_semaphore, self.config),
+                daemon=True
+            )
+            thread.start()
+
+    def retry_downloads(self):
+        global download_tasks_total, download_tasks_completed, all_downloads_succeeded
+
+        if not self.failed_args:
+            return
+
+        # Reset counters and state for the retry
+        self.ui.progress_var.set(0)
+        download_tasks_total = len(self.failed_args)
+        download_tasks_completed = 0
+        all_downloads_succeeded = True
+
+        # Keep a copy of args and clear the original lists for the next batch
+        args_to_retry = self.failed_args[:]
+        self.download_errors.clear()
+        self.failed_args.clear()
+
+        # Start new threads for the failed downloads
+        for retry_args in args_to_retry:
+            thread = threading.Thread(
+                target=download_worker,
+                args=retry_args,
                 daemon=True
             )
             thread.start()
@@ -210,7 +238,9 @@ class AppCallbacks:
 
                 if status == "error":
                     all_downloads_succeeded = False
-                    self.download_errors.append(data)
+                    error_message, retry_args = data
+                    self.download_errors.append(error_message)
+                    self.failed_args.append(retry_args)
 
                 if download_tasks_completed >= download_tasks_total:
                     if all_downloads_succeeded:
@@ -219,7 +249,14 @@ class AppCallbacks:
                         success_count = download_tasks_total - len(self.download_errors)
                         error_summary = f"下载完成。成功 {success_count} 个, 失败 {len(self.download_errors)} 个。\n\n失败详情:\n"
                         detailed_errors = "\n".join(self.download_errors)
-                        messagebox.showwarning("下载完成", error_summary + detailed_errors)
+
+                        if messagebox.askyesno("下载完成", error_summary + detailed_errors \
+                                                           + "\n\n是否重试失败的任务？" \
+                                                           + "\n提示：\n如果下载时发生大量网络错误，请考虑减少同时下载任务数，然后重试。",
+                                               parent=self.root):
+                            self.retry_downloads()
+                        else:
+                            self.failed_args.clear()
         except queue.Empty:
             pass
 
