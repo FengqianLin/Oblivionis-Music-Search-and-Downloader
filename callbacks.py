@@ -114,95 +114,6 @@ class AppCallbacks:
         self.current_page += 1
         self.search_music(self.current_keyword, self.current_source, self.current_search_type, self.current_page)
 
-    def download_selected(self):
-        global download_tasks_total, download_tasks_completed, all_downloads_succeeded
-        items = self.ui.song_list.selection()
-        if not items:
-            messagebox.showwarning("下载提示", "请选择要下载的歌曲")
-            return
-
-        # get music save path
-        if self.config["default_music_path"] == "每次询问":
-            save_dir_music = filedialog.askdirectory(title="选择音乐保存位置", parent=self.root)
-            if not save_dir_music: return
-        else:
-            save_dir_music = self.config["default_music_path"]
-            if not os.path.isdir(save_dir_music):
-                try:
-                    os.makedirs(save_dir_music, exist_ok=True)
-                except Exception:
-                    messagebox.showerror("路径错误", f"歌曲路径\n '{save_dir_music}' \n无法创建，请检查设置")
-                    return
-
-        # get lyric save path (only if mode需要保存 .lrc)
-        save_dir_lyric = None
-        lyric_mode = self.config.get("lyric_mode", "同时内嵌歌词并下载.lrc歌词文件")
-        if lyric_mode in ["只下载.lrc歌词文件", "同时内嵌歌词并下载.lrc歌词文件"]:
-            if self.config["default_lyric_path"] == "每次询问":
-                save_dir_lyric = filedialog.askdirectory(title="选择歌词保存位置", parent=self.root)
-                if not save_dir_lyric: return
-            else:
-                save_dir_lyric = self.config["default_lyric_path"]
-                if not os.path.isdir(save_dir_lyric):
-                    try:
-                        os.makedirs(save_dir_lyric, exist_ok=True)
-                    except Exception:
-                        messagebox.showerror("路径错误", f"歌词路径\n '{save_dir_lyric}' \n无法创建，请检查设置")
-                        return
-
-        # start downloading
-        self.ui.progress_var.set(0)
-        download_tasks_total = len(items)
-        download_tasks_completed = 0
-        all_downloads_succeeded = True
-        self.download_errors = []
-        self.failed_args = []
-        bitrate = self.config.get("default_bitrate", "320")
-        cover_size = self.config.get("album_cover_size", 500)
-        lyric_mode = self.config.get("lyric_mode", "同时内嵌歌词并下载.lrc歌词文件")
-        record_number = self.config.get("record_number", False)
-
-        id_len = len(str(abs(len(items))))
-        thread_id = 0
-        for item in items:
-            song_id, song_name, artist, album, source, pic_id = self.ui.song_list.item(item, "values")
-            thread_str = None
-            if record_number:
-                thread_id += 1
-                thread_str = str(thread_id).zfill(id_len)
-            thread = threading.Thread(
-                target=download_worker,
-                args=(thread_str, song_id, song_name, artist, album, source, pic_id, bitrate, cover_size, lyric_mode, save_dir_music, save_dir_lyric, self.download_semaphore, self.config),
-                daemon=True
-            )
-            thread.start()
-
-    def retry_downloads(self):
-        global download_tasks_total, download_tasks_completed, all_downloads_succeeded
-
-        if not self.failed_args:
-            return
-
-        # Reset counters and state for the retry
-        self.ui.progress_var.set(0)
-        download_tasks_total = len(self.failed_args)
-        download_tasks_completed = 0
-        all_downloads_succeeded = True
-
-        # Keep a copy of args and clear the original lists for the next batch
-        args_to_retry = self.failed_args[:]
-        self.download_errors.clear()
-        self.failed_args.clear()
-
-        # Start new threads for the failed downloads
-        for retry_args in args_to_retry:
-            thread = threading.Thread(
-                target=download_worker,
-                args=retry_args,
-                daemon=True
-            )
-            thread.start()
-
     def process_queue(self):
         global search_id_counter, download_tasks_total, download_tasks_completed, all_downloads_succeeded
         # handle searching queue
@@ -264,6 +175,103 @@ class AppCallbacks:
 
     # endregion
 
+    # region download
+    def download_selected(self):
+        global download_tasks_total, download_tasks_completed, all_downloads_succeeded
+        items = self.ui.song_list.selection()
+        if not items:
+            messagebox.showwarning("下载提示", "请选择要下载的歌曲")
+            return
+
+        # get music save path
+        if self.config["default_music_path"] == "每次询问":
+            save_dir_music = filedialog.askdirectory(title="选择音乐保存位置", parent=self.root)
+            if not save_dir_music: return
+        else:
+            save_dir_music = self.config["default_music_path"]
+            if not os.path.isdir(save_dir_music):
+                try:
+                    os.makedirs(save_dir_music, exist_ok=True)
+                except Exception:
+                    messagebox.showerror("路径错误", f"歌曲路径\n '{save_dir_music}' \n无法创建，请检查设置")
+                    return
+
+        # get lyric save path (only if mode需要保存 .lrc)
+        save_dir_lyric = None
+        lyric_mode = self.config.get("lyric_mode", "同时内嵌歌词并下载.lrc歌词文件")
+        if lyric_mode in ["只下载.lrc歌词文件", "同时内嵌歌词并下载.lrc歌词文件"]:
+            if self.config["default_lyric_path"] == "每次询问":
+                save_dir_lyric = filedialog.askdirectory(title="选择歌词保存位置", parent=self.root)
+                if not save_dir_lyric: return
+            else:
+                save_dir_lyric = self.config["default_lyric_path"]
+                if not os.path.isdir(save_dir_lyric):
+                    try:
+                        os.makedirs(save_dir_lyric, exist_ok=True)
+                    except Exception:
+                        messagebox.showerror("路径错误", f"歌词路径\n '{save_dir_lyric}' \n无法创建，请检查设置")
+                        return
+
+        # start downloading
+        self.ui.progress_var.set(0)
+        download_tasks_total = len(items)
+        download_tasks_completed = 0
+        all_downloads_succeeded = True
+        self.download_errors = []
+        self.failed_args = []
+        bitrate = self.config.get("default_bitrate", "320")
+        cover_size = self.config.get("album_cover_size", 500)
+        lyric_mode = self.config.get("lyric_mode", "同时内嵌歌词并下载.lrc歌词文件")
+        record_type = self.config.get("record_number_type", "不编号")
+
+        id_len = len(str(abs(len(items))))
+        thread_id = 0
+        for item in items:
+            song_id, song_name, artist, album, source, pic_id = self.ui.song_list.item(item, "values")
+            thread_str = None
+            if record_type != "不编号":
+                thread_id += 1
+                thread_str = str(thread_id).zfill(id_len)
+                if record_type == "只在元数据中编号":
+                    thread_str += "."
+                elif record_type == "只在文件名中编号":
+                    thread_str += "!"
+                elif record_type == "在元数据和文件名中编号":
+                    thread_str += "+"
+            thread = threading.Thread(
+                target=download_worker,
+                args=(thread_str, song_id, song_name, artist, album, source, pic_id, bitrate, cover_size, lyric_mode, save_dir_music, save_dir_lyric, self.download_semaphore),
+                daemon=True
+            )
+            thread.start()
+
+    def retry_downloads(self):
+        global download_tasks_total, download_tasks_completed, all_downloads_succeeded
+
+        if not self.failed_args:
+            return
+
+        # Reset counters and state for the retry
+        self.ui.progress_var.set(0)
+        download_tasks_total = len(self.failed_args)
+        download_tasks_completed = 0
+        all_downloads_succeeded = True
+
+        # Keep a copy of args and clear the original lists for the next batch
+        args_to_retry = self.failed_args[:]
+        self.download_errors.clear()
+        self.failed_args.clear()
+
+        # Start new threads for the failed downloads
+        for retry_args in args_to_retry:
+            thread = threading.Thread(
+                target=download_worker,
+                args=retry_args,
+                daemon=True
+            )
+            thread.start()
+    # endregion
+
     def open_settings(self):
         if self.settings_window is not None and self.settings_window.winfo_exists():
             self.settings_window.lift()
@@ -288,6 +296,28 @@ class AppCallbacks:
         main_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
         canvas.create_window((0, 0), window=main_frame, anchor="nw")
         canvas.configure(yscrollcommand=scrollbar.set)
+
+        # region mousewheel
+        def _on_mousewheel(event):
+            if event.num == 4 or event.delta > 0:
+                canvas.yview_scroll(-1, "units")
+            elif event.num == 5 or event.delta < 0:
+                canvas.yview_scroll(1, "units")
+
+        def _bind_mousewheel(event):
+            win.bind_all("<MouseWheel>", _on_mousewheel)
+            win.bind_all("<Button-4>", _on_mousewheel)
+            win.bind_all("<Button-5>", _on_mousewheel)
+
+        def _unbind_mousewheel(event):
+            win.unbind_all("<MouseWheel>")
+            win.unbind_all("<Button-4>")
+            win.unbind_all("<Button-5>")
+
+        main_frame.bind('<Enter>', _bind_mousewheel)
+        main_frame.bind('<Leave>', _unbind_mousewheel)
+        # endregion
+
         scrollbar.pack(side="right", fill="y")
         canvas.pack(side="left", fill="both", expand=True)
         
@@ -334,11 +364,11 @@ class AppCallbacks:
         cb_concurrency.set(str(self.config.get("max_downloads", 3)))
         cb_concurrency.pack(fill="x", padx=10)
 
-        # 是否为单次下载编号
-        record_number_var = tk.BooleanVar()
-        record_number_var.set(self.config.get("record_number", False))
-        chk_record_number = tk.Checkbutton(main_frame, text="为单次下载编号", variable=record_number_var, font=ui_font)
-        chk_record_number.pack(anchor="w", padx=10, pady=(10, 0))
+        # 单次下载编号
+        tk.Label(main_frame, text="为单次下载编号:", font=ui_font).pack(anchor="w", padx=10, pady=5)
+        record_number_type = ttk.Combobox(main_frame, values=["不编号", "只在元数据中编号", "只在文件名中编号", "在元数据和文件名中编号"], state="readonly", font=ui_font)
+        record_number_type.set(str(self.config.get("record_number_type", "不编号")))
+        record_number_type.pack(fill="x", padx=10)
 
         # 默认歌曲保存路径
         tk.Label(main_frame, text="默认歌曲保存路径:", font=ui_font).pack(anchor="w", padx=10, pady=5)
@@ -370,6 +400,7 @@ class AppCallbacks:
 
         def on_settings_close():
             self.settings_window = None
+            _unbind_mousewheel(None)
             win.destroy()
 
         def save_and_close():
@@ -379,7 +410,7 @@ class AppCallbacks:
             self.config["default_search_count"] = int(cb_count.get())
             self.config["lyric_mode"] = cb_lyric_mode.get()
             self.config["max_downloads"] = int(cb_concurrency.get())
-            self.config["record_number"] = record_number_var.get()
+            self.config["record_number_type"] = record_number_type.get() or "不编号"
             self.config["default_music_path"] = entry_music_path.get().strip() or "每次询问"
             self.config["default_lyric_path"] = entry_lyric_path.get().strip() or "每次询问"
             self.config["album_cover_size"] = int(cb_cover_size.get())

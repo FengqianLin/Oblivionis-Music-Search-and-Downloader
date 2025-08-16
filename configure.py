@@ -50,7 +50,7 @@ DEFAULT_CONFIG = {
     "default_search_count": 20,
     "lyric_mode": "同时内嵌歌词并下载.lrc歌词文件",
     "max_downloads": 3,
-    "record_number": False,
+    "record_number_type": "不编号",
     "default_music_path": "每次询问",
     "default_lyric_path": "每次询问",
     "album_cover_size": 500

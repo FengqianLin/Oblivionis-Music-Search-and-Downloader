@@ -56,6 +56,10 @@ class MainUI:
         self.btn_search = ttk.Button(left_frame, text="搜索")
         self.btn_search.grid(row=3, column=0, sticky="w", padx=10, pady=(5, 10))
 
+        # button to import playlist. Wondering implementing it or not...
+        # self.btn_import_playlist = ttk.Button(left_frame, text="导入歌单")
+        # self.btn_import_playlist.grid(row=4, column=0, sticky="w", padx=10, pady=(5, 10))
+
         # right frame album unit
         right_frame.grid_rowconfigure(1, weight=1)
         right_frame.grid_columnconfigure(0, weight=1)
