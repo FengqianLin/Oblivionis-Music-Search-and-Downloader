@@ -45,22 +45,54 @@ FIXED_UI_FONT_SIZE = 10
 UI_FONT_FAMILY = "Segoe UI"
 MAX_COVER_SIZE = 210
 
+# Default configuration with new lyric mode
+DEFAULT_CONFIG = {
+    "default_source": "netease",
+    "default_search_type": "单曲/歌手搜索",
+    "default_bitrate": "320",
+    "download_lyrics": True,
+    "max_downloads": 3,
+    "default_music_path": "每次询问",
+    "default_lyric_path": "每次询问",
+    "album_cover_size": 500,
+    "embed_lyrics_only": False,
+    # New lyric mode key
+    "lyric_mode": "同时内嵌歌词并下载.lrc歌词文件"
+}
+
 def load_config():
+    """Load configuration from file, merging with defaults and handling old flags."""
+    config = DEFAULT_CONFIG.copy()
     if os.path.exists(CONFIG_FILE):
-        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    else:
-        return {
-            "default_source": "netease",
-            "default_search_type": "单曲/歌手搜索",
-            "default_bitrate": "320",
-            "download_lyrics": True,
-            "max_downloads": 3,
-            "default_music_path": "每次询问",
-            "default_lyric_path": "每次询问",
-        }
+        try:
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                user_config = json.load(f)
+                if isinstance(user_config, dict):
+                    config.update(user_config)
+        except (IOError, json.JSONDecodeError):
+            pass
+
+    # Backwards compatibility: convert old boolean flags to new string mode
+    if "download_lyrics" in config and "embed_lyrics_only" in config:
+        download_lyrics = config.pop("download_lyrics")
+        embed_only = config.pop("embed_lyrics_only")
+
+        if not download_lyrics:
+            config["lyric_mode"] = "不下载歌词"
+        elif embed_only:
+            config["lyric_mode"] = "只内嵌歌词"
+        else:
+            # This covers the old default of downloading both embedded and .lrc files
+            config["lyric_mode"] = "同时内嵌歌词并下载.lrc歌词文件"
+
+    return config
 
 def save_config(cfg):
+    """Save configuration to file."""
+    # Remove old flags before saving to ensure clean config file
+    cfg.pop("download_lyrics", None)
+    cfg.pop("embed_lyrics_only", None)
+    
     with open(CONFIG_FILE, "w", encoding="utf-8") as f:
         json.dump(cfg, f, indent=4, ensure_ascii=False)
 

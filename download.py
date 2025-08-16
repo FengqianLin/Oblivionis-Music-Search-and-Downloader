@@ -49,7 +49,8 @@ def merge_lyrics(original_lrc, translated_lrc):
 
     return "\n".join(merged_lines)
 
-def download_worker(song_id, song_name, artist, album, source, pic_id, bitrate, save_dir_music, save_dir_lyric, semaphore):
+
+def download_worker(song_id, song_name, artist, album, source, pic_id, bitrate, save_dir_music, save_dir_lyric, semaphore, config):
     """
     download thread
     """
@@ -80,15 +81,16 @@ def download_worker(song_id, song_name, artist, album, source, pic_id, bitrate, 
                 for chunk in r.iter_content(chunk_size=8192):
                     f.write(chunk)
 
-        # download lyric
-        lyric_file = None
-        if save_dir_lyric:
+        # lyric handling
+        lyric_mode = config.get("lyric_mode", "同时内嵌歌词并下载.lrc歌词文件")
+        final_lyric_content = ""
+
+        if lyric_mode != "不下载歌词":
             lyric_params = {"types": "lyric", "source": source, "id": song_id}
             lyric_data = session.get(BASE_URL, params=lyric_params, timeout=15).json()
 
             original_lyric = lyric_data.get("lyric")
             translated_lyric = lyric_data.get("tlyric")
-            final_lyric_content = ""
 
             if original_lyric and translated_lyric:
                 final_lyric_content = merge_lyrics(original_lyric, translated_lyric)
@@ -97,15 +99,17 @@ def download_worker(song_id, song_name, artist, album, source, pic_id, bitrate, 
             elif translated_lyric:
                 final_lyric_content = translated_lyric
 
-            if final_lyric_content:
+            # 保存 .lrc 文件（模式 3 & 4）
+            if final_lyric_content and lyric_mode in ["只下载.lrc歌词文件", "同时内嵌歌词并下载.lrc歌词文件"] and save_dir_lyric:
                 lyric_file = os.path.join(save_dir_lyric, sanitize_filename(f"{song_name}.lrc"))
                 with open(lyric_file, "w", encoding="utf-8") as f:
                     f.write(final_lyric_content)
 
-        # download album cover if pic_id exists
+        # download album cover with custom size
+        cover_size = config.get("album_cover_size", 500)
         cover_data = None
         if pic_id:
-            pic_params = {"types": "pic", "source": source, "id": pic_id, "size": 500}
+            pic_params = {"types": "pic", "source": source, "id": pic_id, "size": cover_size}
             pic_resp = session.get(BASE_URL, params=pic_params, timeout=15).json()
             pic_url = pic_resp.get("url")
             if pic_url:
@@ -127,15 +131,13 @@ def download_worker(song_id, song_name, artist, album, source, pic_id, bitrate, 
             if cover_data:
                 audio.add(APIC(
                     encoding=3,  # UTF-8
-                    mime='image/jpeg',  # Assume JPEG; adjust if needed
+                    mime='image/jpeg',  # Assume JPEG
                     type=3,  # Cover (front)
                     desc='Cover',
                     data=cover_data
                 ))
-            if lyric_file and os.path.exists(lyric_file):
-                with open(lyric_file, 'r', encoding='utf-8') as f:
-                    lyric_text = f.read()
-                plain_lyrics = '\n'.join(line.split(']', 1)[-1].strip() for line in lyric_text.splitlines() if ']' in line)
+            if final_lyric_content and lyric_mode in ["只内嵌歌词", "同时内嵌歌词并下载.lrc歌词文件"]:
+                plain_lyrics = '\n'.join(line.split(']', 1)[-1].strip() for line in final_lyric_content.splitlines() if ']' in line)
                 audio.add(USLT(encoding=3, lang='eng', desc='Lyrics', text=plain_lyrics))
             audio.save()
 
@@ -150,15 +152,13 @@ def download_worker(song_id, song_name, artist, album, source, pic_id, bitrate, 
                 picture.data = cover_data
                 picture.type = 3  # Cover (front)
                 picture.mime = 'image/jpeg'  # Assume JPEG
-                picture.width = 500  # Placeholder; can extract actual
-                picture.height = 500
+                picture.width = cover_size
+                picture.height = cover_size
                 picture.depth = 24
                 audio.add_picture(picture)
 
-            if lyric_file and os.path.exists(lyric_file):
-                with open(lyric_file, 'r', encoding='utf-8') as f:
-                    lyric_text = f.read()
-                plain_lyrics = '\n'.join(line.split(']', 1)[-1].strip() for line in lyric_text.splitlines() if ']' in line)
+            if final_lyric_content and lyric_mode in ["只内嵌歌词", "同时内嵌歌词并下载.lrc歌词文件"]:
+                plain_lyrics = '\n'.join(line.split(']', 1)[-1].strip() for line in final_lyric_content.splitlines() if ']' in line)
                 audio['lyrics'] = plain_lyrics
 
             audio.save()
