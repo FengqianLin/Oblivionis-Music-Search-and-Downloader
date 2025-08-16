@@ -69,7 +69,9 @@ For the `.exe` version, download `Oblivionis.exe` from the [Releases](https://gi
 5. **Customize Settings**:
    - Click the "设置" button to configure default music source, search type, bitrate, save paths, etc.
    - Save settings to apply them immediately and persist across sessions.
-**Note**: A high "同时下载任务数" could cause various issues. We recommend keeping it at 5 or below.
+**Note**:
+   - A high "同时下载任务数" could cause various issues. We recommend keeping it at **3 or below**.
+   - The album search could fail in all situations. If you come across this issue, try removing '-' first, then 1 or 2spaces, and finally the artist name.
 
 ## API Information
 
