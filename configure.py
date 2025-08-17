@@ -76,4 +76,10 @@ def save_config(cfg):
         json.dump(cfg, f, indent=4, ensure_ascii=False)
 
 def sanitize_filename(name):
-    return "".join(c for c in name if c not in r'\/:*?"<>|').strip()
+    sanitized = "".join(c for c in name if c not in r'\/:*?"<>|').strip()
+    if len(sanitized) > 200:
+        name, ext = os.path.splitext(sanitized)
+        name = name[:200 - len(ext)]
+        sanitized = name + ext
+
+    return sanitized

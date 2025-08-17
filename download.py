@@ -81,10 +81,11 @@ def download_worker(thread_str, song_id, song_name, artist, album, source, pic_i
         except Exception:
             ext = '.mp3'
 
+        br = music_data.get("br", 0)
         if thread_str and (thread_str[-1] == "!" or thread_str[-1] == "+"):
-            music_file = os.path.join(save_dir_music, sanitize_filename(f"{thread_str[:-1]}.{song_name}{ext}"))
+            music_file = os.path.join(save_dir_music, sanitize_filename(f"{thread_str[:-1]}.{song_name}_{artist}_{album}_{br}kbps{ext}"))
         else:
-            music_file = os.path.join(save_dir_music, sanitize_filename(f"{song_name}{ext}"))
+            music_file = os.path.join(save_dir_music, sanitize_filename(f"{song_name}_{artist}_{album}_{br}kbps{ext}"))
 
         with session.get(music_url, stream=True, timeout=30) as r:
             r.raise_for_status()
@@ -112,9 +113,9 @@ def download_worker(thread_str, song_id, song_name, artist, album, source, pic_i
             # 保存 .lrc 文件（模式 3 & 4）
             if final_lyric_content and lyric_mode in ["只下载.lrc歌词文件", "同时内嵌歌词并下载.lrc歌词文件"] and save_dir_lyric:
                 if thread_str and (thread_str[-1] == "!" or thread_str[-1] == "+"):
-                        lyric_file = os.path.join(save_dir_lyric, sanitize_filename(f"{thread_str[:-1]}.{song_name}.lrc"))
+                        lyric_file = os.path.join(save_dir_lyric, sanitize_filename(f"{thread_str[:-1]}.{song_name}_{artist}_{album}_{br}kbps.lrc"))
                 else:
-                    lyric_file = os.path.join(save_dir_lyric, sanitize_filename(f"{song_name}.lrc"))
+                    lyric_file = os.path.join(save_dir_lyric, sanitize_filename(f"{song_name}_{artist}_{album}_{br}kbps.lrc"))
                 with open(lyric_file, "w", encoding="utf-8") as f:
                     f.write(final_lyric_content)
 

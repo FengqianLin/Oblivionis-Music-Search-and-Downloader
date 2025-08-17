@@ -331,7 +331,7 @@ class AppCallbacks:
         #         canvas.yview_scroll(-1, "units")
         #     elif event.num == 5 or event.delta < 0:
         #         canvas.yview_scroll(1, "units")
-        # 
+        #
         # def _bind_mousewheel(event):
         #     win.bind_all("<MouseWheel>", _on_mousewheel)
         #     win.bind_all("<Button-4>", _on_mousewheel)
