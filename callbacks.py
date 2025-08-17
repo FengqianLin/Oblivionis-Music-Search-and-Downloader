@@ -325,22 +325,22 @@ class AppCallbacks:
         canvas.create_window((0, 0), window=main_frame, anchor="nw")
         canvas.configure(yscrollcommand=scrollbar.set)
 
-        # region mousewheel
-        def _on_mousewheel(event):
-            if event.num == 4 or event.delta > 0:
-                canvas.yview_scroll(-1, "units")
-            elif event.num == 5 or event.delta < 0:
-                canvas.yview_scroll(1, "units")
-
-        def _bind_mousewheel(event):
-            win.bind_all("<MouseWheel>", _on_mousewheel)
-            win.bind_all("<Button-4>", _on_mousewheel)
-            win.bind_all("<Button-5>", _on_mousewheel)
-
-        def _unbind_mousewheel(event):
-            win.unbind_all("<MouseWheel>")
-            win.unbind_all("<Button-4>")
-            win.unbind_all("<Button-5>")
+        # region mousewheel (didn't function in the right way...why???)
+        # def _on_mousewheel(event):
+        #     if event.num == 4 or event.delta > 0:
+        #         canvas.yview_scroll(-1, "units")
+        #     elif event.num == 5 or event.delta < 0:
+        #         canvas.yview_scroll(1, "units")
+        # 
+        # def _bind_mousewheel(event):
+        #     win.bind_all("<MouseWheel>", _on_mousewheel)
+        #     win.bind_all("<Button-4>", _on_mousewheel)
+        #     win.bind_all("<Button-5>", _on_mousewheel)
+        #
+        # def _unbind_mousewheel(event):
+        #     win.unbind_all("<MouseWheel>")
+        #     win.unbind_all("<Button-4>")
+        #     win.unbind_all("<Button-5>")
 
         # main_frame.bind('<Enter>', _bind_mousewheel)
         # main_frame.bind('<Leave>', _unbind_mousewheel)
