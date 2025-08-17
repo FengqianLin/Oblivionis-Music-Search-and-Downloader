@@ -309,7 +309,7 @@ class AppCallbacks:
         win = tk.Toplevel(self.root)
         self.settings_window = win
         win.title("设置")
-        win.geometry("400x600")  # 将窗口固定尺寸加大，以容纳所有设置
+        win.geometry("400x700")  # 将窗口固定尺寸加大，以容纳所有设置
         win.resizable(False, True)
         win.minsize(400, 400)
 
@@ -342,8 +342,8 @@ class AppCallbacks:
             win.unbind_all("<Button-4>")
             win.unbind_all("<Button-5>")
 
-        main_frame.bind('<Enter>', _bind_mousewheel)
-        main_frame.bind('<Leave>', _unbind_mousewheel)
+        # main_frame.bind('<Enter>', _bind_mousewheel)
+        # main_frame.bind('<Leave>', _unbind_mousewheel)
         # endregion
 
         scrollbar.pack(side="right", fill="y")
@@ -428,7 +428,7 @@ class AppCallbacks:
 
         def on_settings_close():
             self.settings_window = None
-            _unbind_mousewheel(None)
+            # _unbind_mousewheel(None)
             win.destroy()
 
         def save_and_close():
