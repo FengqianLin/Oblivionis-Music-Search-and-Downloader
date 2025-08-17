@@ -8,6 +8,7 @@ import time
 
 from download import *
 from search import *
+# from configure import *
 
 class AppCallbacks:
     def __init__(self, root, ui):
@@ -69,6 +70,13 @@ class AppCallbacks:
             self.ui.album_label.config(image=None, text="封面加载失败")
             self.ui.album_label.image = None
 
+    # def format_speed(self, bytes_per_second):
+    #     if bytes_per_second < 1024:
+    #         return f"{bytes_per_second} B/s"
+    #     elif bytes_per_second < 1024 * 1024:
+    #         return f"{bytes_per_second / 1024:.1f} KB/s"
+    #     else:
+    #         return f"{bytes_per_second / (1024 * 1024):.1f} MB/s"
     # endregion
 
     # region threading
@@ -174,6 +182,7 @@ class AppCallbacks:
                 if download_tasks_total > 0:
                     progress = int(download_tasks_completed * 100 / download_tasks_total)
                     self.ui.progress_var.set(progress)
+                    self.ui.progress_task_var.set(f"{download_tasks_completed} / {download_tasks_total}")
 
                 if status == "error":
                     all_downloads_succeeded = False
@@ -247,6 +256,7 @@ class AppCallbacks:
         if download_tasks_completed >= download_tasks_total:
             # This is a new session, so reset all state variables.
             self.ui.progress_var.set(0)
+            self.ui.progress_task_var.set("0 / 0")
             download_tasks_total = 0
             download_tasks_completed = 0
             all_downloads_succeeded = True
@@ -255,6 +265,7 @@ class AppCallbacks:
 
         # Add the number of newly selected items to the total task count.
         download_tasks_total += len(items)
+        self.ui.progress_task_var.set(f"{download_tasks_completed} / {download_tasks_total}")
 
         bitrate = self.config.get("default_bitrate", "320")
         cover_size = self.config.get("album_cover_size", 500)
@@ -279,13 +290,14 @@ class AppCallbacks:
             task_queue.put(args[0])
 
     def retry_downloads(self):
-        global download_tasks_total, download_tasks_completed, all_downloads_succeeded
+        global download_tasks_total, download_tasks_completed, all_downloads_succeeded, total_bytes_downloaded, download_bytes_lock
 
         if not self.failed_args:
             return
 
         # Reset counters and state for the retry
         self.ui.progress_var.set(0)
+        self.ui.progress_task_var.set(f"{download_tasks_completed} / {download_tasks_total}")
         download_tasks_total = len(self.failed_args)
         download_tasks_completed = 0
         all_downloads_succeeded = True

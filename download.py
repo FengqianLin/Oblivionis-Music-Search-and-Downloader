@@ -92,6 +92,8 @@ def download_worker(thread_str, song_id, song_name, artist, album, source, pic_i
             with open(music_file, "wb") as f:
                 for chunk in r.iter_content(chunk_size=8192):
                     f.write(chunk)
+                    # with download_bytes_lock:
+                    #     total_bytes_downloaded += len(chunk)
 
         # lyric handling
         final_lyric_content = ""

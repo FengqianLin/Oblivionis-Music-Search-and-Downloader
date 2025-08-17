@@ -3,6 +3,7 @@ import requests
 import os
 import json
 import sys
+import threading
 
 def get_user_data_dir():
     if sys.platform.startswith("win"):
@@ -31,10 +32,16 @@ pic_queue    = queue.Queue()
 download_queue = queue.Queue()
 task_queue = queue.Queue()
 
+# download counter
 search_id_counter = 0
 download_tasks_total = 0
 download_tasks_completed = 0
 all_downloads_succeeded = True
+
+# speed cal
+# total_bytes_downloaded = 0
+# download_bytes_lock = threading.Lock()
+# CAL_SPEED_INTERVAL = 1
 
 session = requests.Session()
 

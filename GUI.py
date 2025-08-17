@@ -97,7 +97,7 @@ class MainUI:
         # bottom button frame
         button_container_frame = tk.Frame(self.root)
         button_container_frame.grid(row=4, column=0, sticky="ew", pady=10)
-        button_container_frame.grid_columnconfigure(0, weight=1);
+        button_container_frame.grid_columnconfigure(0, weight=1)
         button_container_frame.grid_columnconfigure(2, weight=1)
         self.btn_download = ttk.Button(button_container_frame, text="下载选中歌曲")
         self.btn_download.grid(row=0, column=1, pady=(0, 5), sticky="ew")
@@ -111,4 +111,15 @@ class MainUI:
         tk.Label(status_frame, text="下载进度：", font=self.ui_font).grid(row=0, column=0, padx=10, pady=6, sticky="w")
         self.progress_var = tk.IntVar()
         progress_bar = ttk.Progressbar(status_frame, variable=self.progress_var, maximum=100)
-        progress_bar.grid(row=0, column=1, padx=(0, 10), pady=6, sticky="ew")
+        progress_bar.grid(row=0, column=1, padx=(0, 5), pady=6, sticky="ew")
+
+        self.progress_task_var = tk.StringVar(value="0 / 0")
+        self.progress_label = tk.Label(status_frame, textvariable=self.progress_task_var, font=self.ui_font, width=8,
+                                       anchor='w')
+        self.progress_label.grid(row=0, column=2, padx=(0, 10), pady=6, sticky="w")
+
+        # tk.Label(status_frame, text="↓", font=self.ui_font).grid(row=0, column=3, pady=6, sticky='w')
+        # self.speed_text_var = tk.StringVar(value="")
+        # self.speed_label = tk.Label(status_frame, textvariable=self.speed_text_var, font=self.ui_font, width=12,
+        #                             anchor='w')
+        # self.speed_label.grid(row=0, column=4, padx=(0, 10), pady=6, sticky="w")
