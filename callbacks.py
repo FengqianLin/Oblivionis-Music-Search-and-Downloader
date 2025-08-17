@@ -290,7 +290,7 @@ class AppCallbacks:
             task_queue.put(args[0])
 
     def retry_downloads(self):
-        global download_tasks_total, download_tasks_completed, all_downloads_succeeded, total_bytes_downloaded, download_bytes_lock
+        global download_tasks_total, download_tasks_completed, all_downloads_succeeded
 
         if not self.failed_args:
             return
