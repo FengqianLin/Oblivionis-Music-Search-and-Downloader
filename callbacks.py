@@ -297,9 +297,9 @@ class AppCallbacks:
 
         # Reset counters and state for the retry
         self.ui.progress_var.set(0)
-        self.ui.progress_task_var.set(f"{download_tasks_completed} / {download_tasks_total}")
         download_tasks_total = len(self.failed_args)
         download_tasks_completed = 0
+        self.ui.progress_task_var.set(f"{download_tasks_completed} / {download_tasks_total}")
         all_downloads_succeeded = True
 
         # Keep a copy of args and clear the original lists for the next batch
